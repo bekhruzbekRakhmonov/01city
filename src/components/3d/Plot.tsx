@@ -1,0 +1,87 @@
+'use client';
+
+import { useState } from 'react';
+import { useThree } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
+import Building from './BuildingComponent';
+import { Garden } from './Garden';
+import { SubBuilding } from './SubBuilding';
+import { PlotInfo } from '../ui/PlotInfo';
+
+interface PlotProps {
+  plot: any; // Using 'any' for now, would be properly typed in a real implementation
+}
+
+export function Plot({ plot }: PlotProps) {
+  const [showInfo, setShowInfo] = useState(false);
+  const { camera } = useThree();
+  
+  // Plot boundaries visualization
+  const plotWidth = plot.size.width;
+  const plotDepth = plot.size.depth;
+  
+  const handlePlotClick = () => {
+    setShowInfo(!showInfo);
+  };
+  
+  return (
+    <group 
+      position={[plot.position.x, 0, plot.position.z]}
+      onClick={handlePlotClick}
+    >
+      {/* Plot boundaries - slightly transparent ground */}
+      <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[plotWidth, plotDepth]} />
+        <meshStandardMaterial color="#f0f0f0" transparent opacity={0.3} />
+      </mesh>
+      
+      {/* Main building */}
+      <Building 
+        type={plot.mainBuilding.type}
+        position={[0, 0, 0]}
+        height={plot.mainBuilding.height}
+        color={plot.mainBuilding.color}
+        rotation={plot.mainBuilding.rotation}
+        customizations={plot.mainBuilding.customizations}
+      />
+      
+      {/* Garden if enabled */}
+      {plot.garden && plot.garden.enabled && (
+        <Garden 
+          style={plot.garden.style}
+          elements={plot.garden.elements}
+          plotSize={{ width: plotWidth, depth: plotDepth }}
+        />
+      )}
+      
+      {/* Sub-buildings if any */}
+      {plot.subBuildings && plot.subBuildings.map((subBuilding: any, index: number) => (
+        <SubBuilding 
+          key={index}
+          type={subBuilding.type}
+          position={[subBuilding.position.x, 0, subBuilding.position.z]}
+          rotation={subBuilding.rotation}
+          size={subBuilding.size}
+          color={subBuilding.color}
+          customizations={subBuilding.customizations}
+        />
+      ))}
+      
+      {/* Info popup when clicked */}
+      {showInfo && (
+        <Html
+          position={[0, plot.mainBuilding.height + 2, 0]}
+          distanceFactor={10}
+          occlude
+        >
+          <PlotInfo 
+            username={plot.username}
+            description={plot.description || "No description provided"}
+            creatorInfo={plot.creatorInfo || ""}
+            onClose={() => setShowInfo(false)}
+          />
+        </Html>
+      )}
+    </group>
+  );
+}
