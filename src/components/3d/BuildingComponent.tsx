@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { Box } from '@react-three/drei';
 import * as THREE from 'three';
 import { BuildingModel } from './BuildingModel';
+import { CustomModelLoader } from './CustomModelLoader';
 
 // Define building types that match our 3D models
 export type BuildingType = 'low_poly' | 'sugarcube' | 'custom';
@@ -35,6 +36,12 @@ interface BuildingProps {
   scale?: number;
   selected?: boolean;
   customizations?: Record<string, unknown>;
+  customModel?: {
+    enabled: boolean;
+    modelUrl?: string;
+    name?: string;
+    description?: string;
+  };
 }
 
 /**
@@ -49,7 +56,8 @@ function Building({
   rotation = [0, 0, 0],
   scale: customScale,
   selected = false,
-  customizations = {}
+  customizations = {},
+  customModel
 }: BuildingProps) {
   const buildingRef = useRef<THREE.Group>(null);
   const preset = BUILDING_PRESETS[type as keyof typeof BUILDING_PRESETS] || BUILDING_PRESETS.low_poly;
@@ -71,13 +79,22 @@ function Building({
     }
   });
 
-  // For custom buildings, fall back to a simple box
-  if (type === 'custom') {
+  // For custom buildings with uploaded models
+  if (type === 'custom' || (customModel?.enabled && customModel?.modelUrl)) {
     return (
       <group ref={buildingRef} position={position} rotation={rotation}>
-        <Box args={[1, buildingHeight, 1]}>
-          <meshStandardMaterial color={buildingColor} />
-        </Box>
+        <CustomModelLoader
+          modelUrl={customModel?.modelUrl || ''}
+          scale={scale}
+          color={buildingColor}
+          selected={selected}
+          fallbackComponent={
+            <Box args={[1, buildingHeight, 1]}>
+              <meshStandardMaterial color={buildingColor} />
+            </Box>
+          }
+          {...customizations}
+        />
       </group>
     );
   }

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useState, useMemo } from 'react';
+import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Plot } from './Plot';
-import { Box, Text } from '@react-three/drei';
-import { Ground } from './Ground';
 import { PlotCreator } from '../ui/PlotCreator';
+import LandSelector from '../ui/LandSelector';
+import { Text } from '@react-three/drei';
+import { Ground } from './Ground';
 import { GovernmentBuilding } from './GovernmentBuilding';
 import { useUser } from '@clerk/nextjs';
 import * as THREE from 'three';
@@ -14,9 +15,10 @@ import * as THREE from 'three';
 export function City() {
   // Fetch all plots from Convex
   const plots = useQuery(api.plots.getAll) || [];
-  const [isSelectingPlot, setIsSelectingPlot] = useState(false);
-  const [showPlotCreator, setShowPlotCreator] = useState(false);
+  const [isCreatingPlot, setIsCreatingPlot] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<{ x: number; z: number } | null>(null);
+  const [isChoosingPlot, setIsChoosingPlot] = useState(false);
+  const [showLandSelector, setShowLandSelector] = useState(false);
   const { isSignedIn } = useUser();
 
   // Generate available plot positions
@@ -31,58 +33,53 @@ export function City() {
 
   const handlePlotSelect = (position: { x: number; z: number }) => {
     setSelectedPosition(position);
-    setShowPlotCreator(true);
-    setIsSelectingPlot(false);
+    setIsCreatingPlot(true);
+    setIsChoosingPlot(false);
+    setShowLandSelector(false);
+  };
+
+  const handleLandSelectorCancel = () => {
+    setShowLandSelector(false);
+    setIsChoosingPlot(false);
   };
 
   const handlePlotCreated = () => {
-    setShowPlotCreator(false);
+    setIsCreatingPlot(false);
     setSelectedPosition(null);
+    setShowLandSelector(false);
   };
 
   return (
     <group>
       {/* Ground */}
       <Ground />
-      <GovernmentBuilding position={[0, 0, 0]} scale={0.4} />
+      <GovernmentBuilding position={[0, 0, 0]} scale={1} />
       
       {/* Existing Plots */}
       {plots.map((plot) => (
         <Plot key={plot._id} plot={plot} />
       ))}
 
-      {/* Available Plot Positions */}
-      {isSelectingPlot && availablePositions.map((position, index) => (
-        <Plot
-          key={`available-${index}`}
-          plot={{
-            position,
-            size: { width: 10, depth: 10 },
-            mainBuilding: { height: 0 }
-          }}
-          isSelectable
-          onSelect={() => handlePlotSelect(position)}
-        />
-      ))}
+
 
       {/* Plot Creator Modal */}
-      {showPlotCreator && selectedPosition && (
+      {isCreatingPlot && selectedPosition && (
         <PlotCreator
           initialPosition={selectedPosition}
           onComplete={handlePlotCreated}
         />
       )}
 
-      {/* Build Button */}
-      {isSignedIn && !isSelectingPlot && !showPlotCreator && (
-        <group position={[0, 2, 0]} onClick={() => setIsSelectingPlot(true)}>
+      {/* Choose Plot Button */}
+      {!isCreatingPlot && !isChoosingPlot && !showLandSelector && (
+        <group position={[0, 10, 0]} onClick={() => setShowLandSelector(true)}>
           <mesh>
-            <planeGeometry args={[4, 1]} />
-            <meshStandardMaterial color="#2563eb" />
+            <boxGeometry args={[8, 2, 1]} />
+            <meshStandardMaterial color="#3b82f6" />
           </mesh>
           <Text
-            position={[0, 0, 0.1]}
-            fontSize={0.3}
+            position={[0, 0, 0.6]}
+            fontSize={0.5}
             color="white"
             anchorX="center"
             anchorY="middle"
@@ -90,6 +87,14 @@ export function City() {
             Choose Plot
           </Text>
         </group>
+      )}
+
+      {/* Land Selector */}
+      {showLandSelector && (
+        <LandSelector
+          onPlotSelect={handlePlotSelect}
+          onCancel={handleLandSelectorCancel}
+        />
       )}
     </group>
   );

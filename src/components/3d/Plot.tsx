@@ -68,6 +68,7 @@ export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
         color={plot.mainBuilding.color}
         rotation={plot.mainBuilding.rotation}
         customizations={plot.mainBuilding.customizations}
+        customModel={plot.customModel}
       />
       
       {/* Garden if enabled */}

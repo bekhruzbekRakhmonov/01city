@@ -51,6 +51,71 @@ export default defineSchema({
     // Creator information and description
     creatorInfo: v.optional(v.string()),
     description: v.optional(v.string()),
+    
+    // Pricing and payment information
+    pricing: v.object({
+      totalCost: v.number(), // Total cost in USD cents
+      freeSquares: v.number(), // Number of free squares used
+      paidSquares: v.number(), // Number of paid squares
+      pricePerSquare: v.number(), // Price per square in USD cents
+    }),
+    
+    // Payment status
+    paymentStatus: v.string(), // "pending", "paid", "free"
+    paymentId: v.optional(v.string()), // Payment processor transaction ID
+    
+    // Custom 3D model support
+    customModel: v.optional(v.object({
+      enabled: v.boolean(),
+      modelUrl: v.optional(v.string()), // URL to uploaded GLB/GLTF file
+      modelType: v.optional(v.string()), // "glb" or "gltf"
+      uploadedAt: v.optional(v.number()),
+    })),
+    
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
+  
+  // User accounts and credits
+  users: defineTable({
+    userId: v.string(), // Clerk user ID
+    username: v.string(),
+    email: v.string(),
+    
+    // Account balance and credits
+    credits: v.number(), // Available credits in USD cents
+    totalSpent: v.number(), // Total amount spent
+    
+    // Subscription info (for future premium features)
+    subscriptionTier: v.string(), // "free", "basic", "premium"
+    subscriptionExpiry: v.optional(v.number()),
+    
+    // Free squares allowance
+    freeSquaresUsed: v.number(),
+    freeSquaresLimit: v.number(), // Default: 25 (5x5 plot)
+    
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
+  
+  // Payment transactions
+  transactions: defineTable({
+    userId: v.string(),
+    plotId: v.optional(v.id("plots")),
+    
+    // Transaction details
+    amount: v.number(), // Amount in USD cents
+    currency: v.string(), // "USD"
+    type: v.string(), // "plot_purchase", "credit_purchase", "model_upload"
+    
+    // Payment processor info
+    paymentProcessor: v.string(), // "stripe", "paypal", etc.
+    transactionId: v.string(),
+    status: v.string(), // "pending", "completed", "failed", "refunded"
+    
+    // Additional metadata
+    metadata: v.optional(v.any()),
+    
     createdAt: v.number(),
     updatedAt: v.number(),
   }),
