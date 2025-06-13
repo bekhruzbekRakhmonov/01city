@@ -11,15 +11,16 @@ export function Scene() {
     <div className="w-full h-full absolute inset-0">
       <Canvas
         shadows
-        camera={{ position: [50, 50, 50], fov: 45 }}
-        gl={{ antialias: true }}
-        style={{ background: '#87CEEB' }}
+        camera={{ position: [0, 60, 120], fov: 60, far: 1000 }}
+        style={{ width: '100vw', height: '100vh', background: '#b5e3b5' }}
         dpr={[1, 2]} // Responsive rendering for different device pixel ratios
       >
+        {/* Fog to create depth and atmosphere */}
+        <fog attach="fog" args={['#a0c1e8', 300, 1500]} />
         <Suspense fallback={null}>
           {/* Enhanced sky with more realistic Silicon Valley lighting */}
           <Sky 
-            distance={450000} 
+            distance={250000} 
             sunPosition={[100, 40, 100]} 
             inclination={0.6}
             azimuth={0.2}
@@ -40,8 +41,7 @@ export function Scene() {
             color="#FFF8E0"
           />
           
-          {/* Add fog effect for Bay Area atmosphere */}
-          <fog attach="fog" args={['#E0F7FF', 100, 300]} />
+
           
           {/* Decorative clouds - fewer and higher for Silicon Valley clear skies */}
           <Clouds material={THREE.MeshBasicMaterial}>
@@ -72,23 +72,26 @@ export function Scene() {
           {/* The city itself */}
           <City />
           
-          {/* Enhanced camera controls */}
+          {/* Enhanced camera controls with zoom-to-cursor */}
           <OrbitControls 
             enableZoom={true} 
             enablePan={true} 
             minPolarAngle={0.2} 
             maxPolarAngle={Math.PI / 2.1} 
             minDistance={15}
-            maxDistance={200}
+            maxDistance={1000}
             enableDamping={true}
             dampingFactor={0.05}
+            zoomToCursor={true}
+            screenSpacePanning={false}
+            maxZoom={10}
+            minZoom={0.5}
           />
           
           {/* Environment map for realistic reflections */}
           <Environment preset="city" background={false} />
           
-          {/* Fog to create depth and atmosphere */}
-          <fog attach="fog" args={['#E6F0FF', 100, 400]} />
+
         </Suspense>
       </Canvas>
     </div>

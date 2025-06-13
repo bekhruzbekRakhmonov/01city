@@ -19,7 +19,7 @@ export default function Home() {
         <LoadingScreen />
       ) : (
         <>
-          <Navbar />
+          {/* <Navbar /> */}
           <div className="flex-1 h-[calc(100vh-4rem)]">
             <Suspense fallback={<div>Loading 3D scene...</div>}>
               <Scene />

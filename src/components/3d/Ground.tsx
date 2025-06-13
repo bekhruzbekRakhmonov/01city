@@ -2,6 +2,7 @@
 
 import { RepeatWrapping, DoubleSide, Vector2, CanvasTexture } from 'three';
 import { useMemo } from 'react';
+import { Mountain } from './Mountain';
 
 export function Ground() {
   const terrainTexture = useMemo(() => {
@@ -114,16 +115,44 @@ export function Ground() {
   }, []);
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]} receiveShadow>
-      <planeGeometry args={[1000, 1000, 100, 100]} />
-      <meshStandardMaterial
-        map={terrainTexture}
-        normalMap={normalMap}
-        normalScale={new Vector2(0.25, 0.25)}
-        roughness={1}
-        metalness={0.02}
-        side={DoubleSide}
-      />
-    </mesh>
+    <>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]} receiveShadow>
+        <circleGeometry args={[600, 128]} />
+        <meshStandardMaterial
+          map={terrainTexture}
+          normalMap={normalMap}
+          normalScale={new Vector2(0.25, 0.25)}
+          roughness={1}
+          metalness={0.02}
+          side={DoubleSide}
+        />
+      </mesh>
+
+      {/* Mountains around the edge */}
+      {Array.from({ length: 100 }).map((_, i) => {
+        const angle = (i / 100) * Math.PI * 2;
+        const radius = 590; // No jitter
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        const y = -1; // Align with ground plane position
+        const scale = 3; // Drastically increased scale
+        const rot = Math.random() * Math.PI * 2;
+        
+        // Cycle through different mountain shapes
+        const shapes = ['alpine', 'volcanic', 'rolling', 'jagged', 'ridge'];
+        const shape = shapes[i % shapes.length];
+        
+        return (
+          <Mountain
+            key={i}
+            position={[x, y, z]}
+            scale={scale}
+            rotation={[0, rot, 0]}
+            shape={shape}
+            seed={i * 123} // Different seed for each mountain
+          />
+        );
+      })}
+    </>
   );
 }
