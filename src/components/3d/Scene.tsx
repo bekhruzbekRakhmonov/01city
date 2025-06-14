@@ -5,30 +5,6 @@ import { OrbitControls, Sky, Environment, Stars, Cloud, Clouds, useHelper } from
 import { Suspense, useRef } from 'react';
 import * as THREE from 'three';
 import { City } from './City';
-import { LoadingScreen } from '../ui/LoadingScreen';
-
-// Light helper component to visualize light direction and position
-function LightWithHelper() {
-  const lightRef = useRef();
-  useHelper(lightRef, THREE.DirectionalLightHelper, 5, 'red');
-  
-  return (
-    <directionalLight
-      ref={lightRef}
-      castShadow
-      position={[50, 50, 30]}
-      intensity={1.2}
-      shadow-mapSize={[2048, 2048]}
-      shadow-bias={-0.0001}
-    >
-      <orthographicCamera
-        attach="shadow-camera"
-        args={[-100, 100, 100, -100, 0.1, 500]}
-        far={500}
-      />
-    </directionalLight>
-  );
-}
 
 export function Scene() {
   return (
@@ -55,7 +31,7 @@ export function Scene() {
           <ambientLight intensity={0.5} color="#E0F7FF" />
           
           {/* Main directional light (California sun) */}
-          <LightWithHelper />
+          {/* <LightWithHelper /> */}
           
           {/* Secondary fill light */}
           <directionalLight

@@ -1,158 +1,129 @@
 'use client';
 
-import { useTexture } from '@react-three/drei';
 import { RepeatWrapping, DoubleSide, Vector2, CanvasTexture } from 'three';
 import { useMemo } from 'react';
 
 export function Ground() {
-  // Create a procedural terrain texture
   const terrainTexture = useMemo(() => {
     const size = 1024;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
-    
+
     if (ctx) {
-      // Base color - grass green
-      ctx.fillStyle = '#91B496';
+      // Fill base with vibrant grass green
+      ctx.fillStyle = '#5f9e51'; // Balanced vibrant grass green
       ctx.fillRect(0, 0, size, size);
-      
-      // Add some texture variation
-      for (let i = 0; i < 5000; i++) {
+
+      // Dark green blades
+      ctx.fillStyle = '#3c7522';
+      for (let i = 0; i < 50000; i++) {
         const x = Math.random() * size;
         const y = Math.random() * size;
-        const radius = Math.random() * 3 + 1;
-        
-        // Random darker and lighter patches
-        ctx.fillStyle = Math.random() > 0.5 ? '#7A9A80' : '#A6C4AB';
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fill();
+        const w = Math.random() * 1 + 0.5;
+        const h = Math.random() * 4 + 1;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate((Math.random() - 0.5) * 0.4); // simulate grass direction
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
       }
-      
-      // Add some paths/roads
-      ctx.strokeStyle = '#B5B5A3';
-      ctx.lineWidth = 5;
-      
-      // Main roads
+
+      // Lighter green blades
+      ctx.fillStyle = '#88cc66';
+      for (let i = 0; i < 30000; i++) {
+        const x = Math.random() * size;
+        const y = Math.random() * size;
+        const w = Math.random() * 0.8 + 0.3;
+        const h = Math.random() * 3 + 1;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate((Math.random() - 0.5) * 0.3);
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+      }
+
+      // Subtle noise for realism
+      for (let i = 0; i < 10000; i++) {
+        const x = Math.random() * size;
+        const y = Math.random() * size;
+        const value = Math.floor(Math.random() * 30 + 100); // 100–130 green noise
+        ctx.fillStyle = `rgb(${value - 20}, ${value}, ${value - 20})`;
+        ctx.fillRect(x, y, 1, 1);
+      }
+
+      // Earth path strokes
+      ctx.strokeStyle = '#a0845c';
+      ctx.lineWidth = 6;
       ctx.beginPath();
       ctx.moveTo(0, size / 2);
-      ctx.lineTo(size, size / 2);
+      ctx.bezierCurveTo(size / 3, size / 2 + 50, 2 * size / 3, size / 2 - 50, size, size / 2);
       ctx.stroke();
-      
+
       ctx.beginPath();
       ctx.moveTo(size / 2, 0);
-      ctx.lineTo(size / 2, size);
+      ctx.bezierCurveTo(size / 2 + 50, size / 3, size / 2 - 50, 2 * size / 3, size / 2, size);
       ctx.stroke();
-      
-      // Secondary paths
-      for (let i = 0; i < 5; i++) {
-        const y = Math.random() * size;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.bezierCurveTo(size / 3, y + (Math.random() - 0.5) * 100, 2 * size / 3, y + (Math.random() - 0.5) * 100, size, y + (Math.random() - 0.5) * 100);
-        ctx.stroke();
-      }
     }
-    
+
     const texture = new CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = RepeatWrapping;
-    texture.repeat.set(5, 5);
-    
+    texture.repeat.set(10, 10);
+    texture.anisotropy = 16;
+
     return texture;
   }, []);
-  
-  // Create a procedural normal map for terrain elevation
+
   const normalMap = useMemo(() => {
     const size = 1024;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
-    
+
     if (ctx) {
-      // Fill with neutral normal (0.5, 0.5, 1) which is RGB(128, 128, 255)
-      ctx.fillStyle = 'rgb(128, 128, 255)';
+      ctx.fillStyle = 'rgb(128,128,255)';
       ctx.fillRect(0, 0, size, size);
-      
-      // Add some random elevation changes
-      for (let i = 0; i < 200; i++) {
+
+      // Add random soft bumps for elevation variation
+      for (let i = 0; i < 500; i++) {
         const x = Math.random() * size;
         const y = Math.random() * size;
-        const radius = Math.random() * 50 + 20;
-        
-        // Create a radial gradient for smooth elevation changes
+        const radius = Math.random() * 30 + 10;
+
+        const r = 120 + Math.random() * 16;
+        const g = 120 + Math.random() * 16;
+
         const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-        
-        // Random elevation direction
-        const r = Math.random() * 40 + 108; // 128 +/- 20
-        const g = Math.random() * 40 + 108; // 128 +/- 20
-        
-        gradient.addColorStop(0, `rgb(${r}, ${g}, 255)`);
-        gradient.addColorStop(1, 'rgb(128, 128, 255)');
-        
+        gradient.addColorStop(0, `rgb(${r},${g},255)`);
+        gradient.addColorStop(1, 'rgb(128,128,255)');
         ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
       }
     }
-    
+
     const texture = new CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = RepeatWrapping;
-    texture.repeat.set(5, 5);
-    
+    texture.repeat.set(10, 10);
+    texture.anisotropy = 16;
+
     return texture;
   }, []);
-  
+
   return (
-    <mesh 
-      rotation={[-Math.PI / 2, 0, 0]} 
-      position={[0, -0.1, 0]} 
-      receiveShadow
-    >
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]} receiveShadow>
       <planeGeometry args={[1000, 1000, 100, 100]} />
-      <meshStandardMaterial 
+      <meshStandardMaterial
         map={terrainTexture}
         normalMap={normalMap}
-        normalScale={new Vector2(0.5, 0.5)}
-        roughness={0.8} 
-        metalness={0.1}
+        normalScale={new Vector2(0.25, 0.25)}
+        roughness={1}
+        metalness={0.02}
         side={DoubleSide}
       />
     </mesh>
   );
 }
-
-// For future implementation with textures:
-/*
-export function Ground() {
-  const textures = useTexture({
-    map: '/textures/grass/grass_diffuse.jpg',
-    normalMap: '/textures/grass/grass_normal.jpg',
-    roughnessMap: '/textures/grass/grass_roughness.jpg',
-    aoMap: '/textures/grass/grass_ao.jpg',
-  });
-
-  // Configure texture repeating
-  Object.values(textures).forEach(texture => {
-    texture.wrapS = texture.wrapT = RepeatWrapping;
-    texture.repeat.set(100, 100);
-  });
-
-  return (
-    <mesh 
-      rotation={[-Math.PI / 2, 0, 0]} 
-      position={[0, -0.1, 0]} 
-      receiveShadow
-    >
-      <planeGeometry args={[1000, 1000]} />
-      <meshStandardMaterial 
-        {...textures} 
-        roughness={1} 
-      />
-    </mesh>
-  );
-}
-*/

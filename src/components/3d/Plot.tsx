@@ -10,10 +10,13 @@ import { PlotInfo } from '../ui/PlotInfo';
 
 interface PlotProps {
   plot: any; // Using 'any' for now, would be properly typed in a real implementation
+  isSelectable?: boolean;
+  onSelect?: () => void;
 }
 
-export function Plot({ plot }: PlotProps) {
+export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
   const [showInfo, setShowInfo] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const { camera } = useThree();
   
   // Plot boundaries visualization
@@ -21,18 +24,40 @@ export function Plot({ plot }: PlotProps) {
   const plotDepth = plot.size.depth;
   
   const handlePlotClick = () => {
-    setShowInfo(!showInfo);
+    if (isSelectable && onSelect) {
+      onSelect();
+    } else {
+      setShowInfo(!showInfo);
+    }
+  };
+
+  const handlePointerOver = () => {
+    if (isSelectable) {
+      setIsHovered(true);
+    }
+  };
+
+  const handlePointerOut = () => {
+    if (isSelectable) {
+      setIsHovered(false);
+    }
   };
   
   return (
     <group 
       position={[plot.position.x, 0, plot.position.z]}
       onClick={handlePlotClick}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
     >
       {/* Plot boundaries - slightly transparent ground */}
       <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[plotWidth, plotDepth]} />
-        <meshStandardMaterial color="#f0f0f0" transparent opacity={0.3} />
+        <meshStandardMaterial 
+          color={isHovered ? "#4CAF50" : "#f0f0f0"} 
+          transparent 
+          opacity={isHovered ? 0.5 : 0.3} 
+        />
       </mesh>
       
       {/* Main building */}

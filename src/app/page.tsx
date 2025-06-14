@@ -29,15 +29,9 @@ export default function Home() {
           {/* Welcome overlay */}
           <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white/90 dark:bg-gray-900/90 p-4 rounded-lg shadow-lg max-w-md text-center">
             <h2 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">Welcome to 01 City!</h2>
-            <p className="text-gray-700 dark:text-gray-300 mb-4">
-              Explore the city or create your own plot. Click on buildings to learn about their creators.
+            <p className="text-gray-700 dark:text-gray-300">
+              Explore the city and click on buildings to learn about their creators. Sign in to build your own plot directly in the 3D view!
             </p>
-            <a 
-              href="/build"
-              className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Build Your Plot
-            </a>
           </div>
         </>
       )}

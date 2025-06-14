@@ -4,17 +4,21 @@ import { useState } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUser } from '@clerk/nextjs';
+import { Text } from '@react-three/drei';
+import * as THREE from 'three';
 
 interface PlotCreatorProps {
+  initialPosition: { x: number; z: number };
   onComplete?: () => void;
 }
 
-export function PlotCreator({ onComplete }: PlotCreatorProps) {
+export function PlotCreator({ initialPosition, onComplete }: PlotCreatorProps) {
+  const [step, setStep] = useState(1); // 1: Building Type, 2: Customization, 3: Garden, 4: Info
   const { user } = useUser();
   const createPlot = useMutation(api.plots.create);
   
-  // Plot position (would be selected on a map in a real implementation)
-  const [position, setPosition] = useState({ x: Math.floor(Math.random() * 100) - 50, z: Math.floor(Math.random() * 100) - 50 });
+  // Use the provided initial position
+  const [position] = useState(initialPosition);
   
   // Main building configuration
   const [mainBuilding, setMainBuilding] = useState({
@@ -88,6 +92,20 @@ export function PlotCreator({ onComplete }: PlotCreatorProps) {
     }
   };
   
+  const handleNext = () => {
+    if (step < 4) {
+      setStep(step + 1);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
+  };
+
   // Submit the plot
   const handleSubmit = async () => {
     if (!user) return;
@@ -113,348 +131,331 @@ export function PlotCreator({ onComplete }: PlotCreatorProps) {
   };
   
   return (
-    <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-lg max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Create Your Plot</h2>
-      
-      <div className="space-y-6">
-        {/* Main Building Section */}
-        <div className="border-b border-gray-200 dark:border-gray-700 pb-6">
-          <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">Main Building</h3>
+    <group position={[0, 5, 0]}>
+      {/* Background panel */}
+      <mesh position={[0, 0, -0.1]}>
+        <planeGeometry args={[10, 8]} />
+        <meshStandardMaterial color="#1f2937" opacity={0.9} transparent />
+      </mesh>
+
+      {/* Title */}
+      <Text
+        position={[0, 3, 0]}
+        fontSize={0.5}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
+        Create Your Plot
+      </Text>
+
+      {step === 1 && (
+        <group>
+          <Text
+            position={[0, 2, 0]}
+            fontSize={0.3}
+            color="white"
+            anchorX="center"
+            anchorY="middle"
+          >
+            Choose Building Type
+          </Text>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Building Type
-              </label>
-              <select
-                value={mainBuilding.type}
-                onChange={(e) => setMainBuilding({ ...mainBuilding, type: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-              >
-                {buildingTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Height
-              </label>
-              <input
-                type="range"
-                min="3"
-                max="20"
-                value={mainBuilding.height}
-                onChange={(e) => setMainBuilding({ ...mainBuilding, height: parseInt(e.target.value) })}
-                className="w-full"
-              />
-              <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-                {mainBuilding.height} units
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Color
-              </label>
-              <input
-                type="color"
-                value={mainBuilding.color}
-                onChange={(e) => setMainBuilding({ ...mainBuilding, color: e.target.value })}
-                className="w-full h-10 p-1 border border-gray-300 dark:border-gray-600 rounded-md"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Rotation
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="6.28"
-                step="0.01"
-                value={mainBuilding.rotation}
-                onChange={(e) => setMainBuilding({ ...mainBuilding, rotation: parseFloat(e.target.value) })}
-                className="w-full"
-              />
-              <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-                {Math.round(mainBuilding.rotation * 57.3)}°
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Garden Section */}
-        <div className="border-b border-gray-200 dark:border-gray-700 pb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Garden</h3>
-            <label className="inline-flex items-center">
-              <input
-                type="checkbox"
-                checked={garden.enabled}
-                onChange={(e) => setGarden({ ...garden, enabled: e.target.checked })}
-                className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-              />
-              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Enable Garden</span>
-            </label>
-          </div>
-          
-          {garden.enabled && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Garden Style
-                </label>
-                <select
-                  value={garden.style}
-                  onChange={(e) => setGarden({ ...garden, style: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-                >
-                  <option value="simple">Simple</option>
-                  <option value="lush">Lush</option>
-                  <option value="zen">Zen</option>
-                  <option value="modern">Modern</option>
-                </select>
-              </div>
+          {/* Building type options */}
+          <group position={[0, 0, 0]}>
+            {buildingTypes.map((type, index) => {
+              const row = Math.floor(index / 3);
+              const col = index % 3;
+              const x = (col - 1) * 2.5;
+              const y = 1 - row * 1.5;
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Garden Elements
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {gardenElements.map((element) => (
-                    <button
-                      key={element}
-                      type="button"
-                      onClick={() => toggleGardenElement(element)}
-                      className={`px-3 py-1 text-sm rounded-full ${garden.elements.includes(element) 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}
-                    >
-                      {element.charAt(0).toUpperCase() + element.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {/* Sub-Buildings Section */}
-        <div className="border-b border-gray-200 dark:border-gray-700 pb-6">
-          <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">Sub-Buildings</h3>
-          
-          {subBuildings.length > 0 && (
-            <div className="mb-4 space-y-2">
-              {subBuildings.map((building, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                  <div className="flex items-center">
-                    <div 
-                      className="w-4 h-4 rounded-full mr-2" 
-                      style={{ backgroundColor: building.color }}
+              return (
+                <group key={type} position={[x, y, 0]} onClick={() => {
+                  setMainBuilding({ ...mainBuilding, type });
+                  handleNext();
+                }}>
+                  <mesh>
+                    <planeGeometry args={[2, 1]} />
+                    <meshStandardMaterial 
+                      color={mainBuilding.type === type ? "#3b82f6" : "#4b5563"} 
                     />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {building.type.charAt(0).toUpperCase() + building.type.slice(1)}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeSubBuilding(index)}
-                    className="text-red-500 hover:text-red-700 text-sm"
+                  </mesh>
+                  <Text
+                    position={[0, 0, 0.1]}
+                    fontSize={0.2}
+                    color="white"
+                    anchorX="center"
+                    anchorY="middle"
                   >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {showSubBuildingForm ? (
-            <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800 rounded">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Building Type
-                  </label>
-                  <select
-                    value={currentSubBuilding.type}
-                    onChange={(e) => setCurrentSubBuilding({ ...currentSubBuilding, type: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-                  >
-                    {subBuildingTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Size
-                  </label>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2"
-                    step="0.1"
-                    value={currentSubBuilding.size}
-                    onChange={(e) => setCurrentSubBuilding({ ...currentSubBuilding, size: parseFloat(e.target.value) })}
-                    className="w-full"
-                  />
-                  <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-                    {currentSubBuilding.size.toFixed(1)}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Color
-                  </label>
-                  <input
-                    type="color"
-                    value={currentSubBuilding.color}
-                    onChange={(e) => setCurrentSubBuilding({ ...currentSubBuilding, color: e.target.value })}
-                    className="w-full h-10 p-1 border border-gray-300 dark:border-gray-600 rounded-md"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Rotation
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="6.28"
-                    step="0.01"
-                    value={currentSubBuilding.rotation}
-                    onChange={(e) => setCurrentSubBuilding({ ...currentSubBuilding, rotation: parseFloat(e.target.value) })}
-                    className="w-full"
-                  />
-                  <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-                    {Math.round(currentSubBuilding.rotation * 57.3)}°
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Position X
-                  </label>
-                  <input
-                    type="range"
-                    min="-4"
-                    max="4"
-                    step="0.5"
-                    value={currentSubBuilding.position.x}
-                    onChange={(e) => setCurrentSubBuilding({ 
-                      ...currentSubBuilding, 
-                      position: { ...currentSubBuilding.position, x: parseFloat(e.target.value) } 
-                    })}
-                    className="w-full"
-                  />
-                  <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-                    {currentSubBuilding.position.x}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Position Z
-                  </label>
-                  <input
-                    type="range"
-                    min="-4"
-                    max="4"
-                    step="0.5"
-                    value={currentSubBuilding.position.z}
-                    onChange={(e) => setCurrentSubBuilding({ 
-                      ...currentSubBuilding, 
-                      position: { ...currentSubBuilding.position, z: parseFloat(e.target.value) } 
-                    })}
-                    className="w-full"
-                  />
-                  <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-                    {currentSubBuilding.position.z}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowSubBuildingForm(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={addSubBuilding}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Add Building
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowSubBuildingForm(true)}
-              className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-600 dark:border-blue-400 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Add Sub-Building
-            </button>
-          )}
-        </div>
-        
-        {/* Plot Information */}
-        <div>
-          <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">Plot Information</h3>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-                placeholder="Describe your plot..."
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Creator Info (optional)
-              </label>
-              <input
-                type="text"
-                value={creatorInfo}
-                onChange={(e) => setCreatorInfo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-                placeholder="Your website, social media, etc."
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+                    {type}
+                  </Text>
+                </group>
+              );
+            })}
+          </group>
+        </group>
+      )}
       
-      <div className="mt-8 flex justify-end">
-        <button
-          type="button"
-          onClick={handleSubmit}
-          className="px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          Create Plot
-        </button>
-      </div>
-    </div>
+      {step === 2 && (
+          <group>
+            <Text
+              position={[0, 2, 0]}
+              fontSize={0.3}
+              color="white"
+              anchorX="center"
+              anchorY="middle"
+            >
+              Customize Building
+            </Text>
+
+            {/* Height control */}
+            <group position={[-3, 0.5, 0]}>
+              <Text position={[0, 0.5, 0]} fontSize={0.2} color="white" anchorX="center">
+                Height
+              </Text>
+              <group position={[0, 0, 0]}>
+                <mesh 
+                  position={[-0.5, 0, 0]} 
+                  onClick={() => setMainBuilding({ ...mainBuilding, height: Math.max(3, mainBuilding.height - 1) })}
+                >
+                  <planeGeometry args={[0.5, 0.5]} />
+                  <meshStandardMaterial color="#4b5563" />
+                </mesh>
+                <Text position={[0, 0, 0]} fontSize={0.2} color="white" anchorX="center">
+                  {mainBuilding.height}
+                </Text>
+                <mesh 
+                  position={[0.5, 0, 0]} 
+                  onClick={() => setMainBuilding({ ...mainBuilding, height: Math.min(20, mainBuilding.height + 1) })}
+                >
+                  <planeGeometry args={[0.5, 0.5]} />
+                  <meshStandardMaterial color="#4b5563" />
+                </mesh>
+              </group>
+            </group>
+
+            {/* Color selection */}
+            <group position={[0, 0.5, 0]}>
+              <Text position={[0, 0.5, 0]} fontSize={0.2} color="white" anchorX="center">
+                Color
+              </Text>
+              <group position={[0, 0, 0]}>
+                {['#4A90E2', '#E24A90', '#4AE290', '#E2904A'].map((color, i) => (
+                  <mesh
+                    key={color}
+                    position={[(i - 1.5) * 0.6, 0, 0]}
+                    onClick={() => setMainBuilding({ ...mainBuilding, color })}
+                  >
+                    <planeGeometry args={[0.5, 0.5]} />
+                    <meshStandardMaterial color={color} />
+                  </mesh>
+                ))}
+              </group>
+            </group>
+
+            {/* Rotation control */}
+            <group position={[3, 0.5, 0]}>
+              <Text position={[0, 0.5, 0]} fontSize={0.2} color="white" anchorX="center">
+                Rotation
+              </Text>
+              <group position={[0, 0, 0]}>
+                <mesh 
+                  position={[-0.5, 0, 0]} 
+                  onClick={() => setMainBuilding({ ...mainBuilding, rotation: (mainBuilding.rotation - Math.PI / 4) % (Math.PI * 2) })}
+                >
+                  <planeGeometry args={[0.5, 0.5]} />
+                  <meshStandardMaterial color="#4b5563" />
+                </mesh>
+                <Text position={[0, 0, 0]} fontSize={0.2} color="white" anchorX="center">
+                  {Math.round((mainBuilding.rotation * 180) / Math.PI)}°
+                </Text>
+                <mesh 
+                  position={[0.5, 0, 0]} 
+                  onClick={() => setMainBuilding({ ...mainBuilding, rotation: (mainBuilding.rotation + Math.PI / 4) % (Math.PI * 2) })}
+                >
+                  <planeGeometry args={[0.5, 0.5]} />
+                  <meshStandardMaterial color="#4b5563" />
+                </mesh>
+              </group>
+            </group>
+
+            {/* Navigation buttons */}
+            <group position={[0, -2, 0]}>
+              <mesh position={[-2, 0, 0]} onClick={handleBack}>
+                <planeGeometry args={[2, 0.8]} />
+                <meshStandardMaterial color="#4b5563" />
+              </mesh>
+              <Text position={[-2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
+                Back
+              </Text>
+
+              <mesh position={[2, 0, 0]} onClick={handleNext}>
+                <planeGeometry args={[2, 0.8]} />
+                <meshStandardMaterial color="#3b82f6" />
+              </mesh>
+              <Text position={[2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
+                Next
+              </Text>
+            </group>
+          </group>
+        )}
+        {step === 3 && (
+          <group>
+            <Text
+              position={[0, 2, 0]}
+              fontSize={0.3}
+              color="white"
+              anchorX="center"
+              anchorY="middle"
+            >
+              Garden Design
+            </Text>
+
+            {/* Garden toggle */}
+            <group position={[0, 1, 0]}>
+              <mesh 
+                onClick={() => setGarden({ ...garden, enabled: !garden.enabled })}
+              >
+                <planeGeometry args={[4, 0.8]} />
+                <meshStandardMaterial color={garden.enabled ? "#3b82f6" : "#4b5563"} />
+              </mesh>
+              <Text position={[0, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
+                {garden.enabled ? "Garden Enabled" : "Garden Disabled"}
+              </Text>
+            </group>
+
+            {/* Garden elements */}
+            {garden.enabled && (
+              <group position={[0, 0, 0]}>
+                <Text position={[0, 0.5, 0]} fontSize={0.2} color="white" anchorX="center">
+                  Elements
+                </Text>
+                <group position={[0, -0.5, 0]}>
+                  {gardenElements.map((element, index) => {
+                    const row = Math.floor(index / 4);
+                    const col = index % 4;
+                    const x = (col - 1.5) * 2;
+                    const y = -row * 1;
+                    
+                    return (
+                      <group key={element} position={[x, y, 0]}>
+                        <mesh
+                          onClick={() => toggleGardenElement(element)}
+                        >
+                          <planeGeometry args={[1.8, 0.8]} />
+                          <meshStandardMaterial 
+                            color={garden.elements.includes(element) ? "#3b82f6" : "#4b5563"} 
+                          />
+                        </mesh>
+                        <Text position={[0, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
+                          {element}
+                        </Text>
+                      </group>
+                    );
+                  })}
+                </group>
+              </group>
+            )}
+
+            {/* Navigation buttons */}
+            <group position={[0, -2, 0]}>
+              <mesh position={[-2, 0, 0]} onClick={handleBack}>
+                <planeGeometry args={[2, 0.8]} />
+                <meshStandardMaterial color="#4b5563" />
+              </mesh>
+              <Text position={[-2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
+                Back
+              </Text>
+
+              <mesh position={[2, 0, 0]} onClick={handleNext}>
+                <planeGeometry args={[2, 0.8]} />
+                <meshStandardMaterial color="#3b82f6" />
+              </mesh>
+              <Text position={[2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
+                Next
+              </Text>
+            </group>
+          </group>
+        )}
+          {step === 4 && (
+          <group>
+            <Text
+              position={[0, 2, 0]}
+              fontSize={0.3}
+              color="white"
+              anchorX="center"
+              anchorY="middle"
+            >
+              Plot Information
+            </Text>
+
+            {/* Description input */}
+            <group position={[0, 0.5, 0]}>
+              <Text position={[0, 0.5, 0]} fontSize={0.2} color="white" anchorX="center">
+                Description
+              </Text>
+              <mesh onClick={() => {
+                const input = prompt('Enter plot description:');
+                if (input) setDescription(input);
+              }}>
+                <planeGeometry args={[8, 1]} />
+                <meshStandardMaterial color="#4b5563" />
+              </mesh>
+              <Text 
+                position={[0, 0, 0.1]} 
+                fontSize={0.15} 
+                color="white" 
+                anchorX="center"
+                maxWidth={7.5}
+              >
+                {description || 'Click to add description'}
+              </Text>
+            </group>
+
+            {/* Creator info input */}
+            <group position={[0, -1, 0]}>
+              <Text position={[0, 0.5, 0]} fontSize={0.2} color="white" anchorX="center">
+                Creator Info
+              </Text>
+              <mesh onClick={() => {
+                const input = prompt('Enter creator info:');
+                if (input) setCreatorInfo(input);
+              }}>
+                <planeGeometry args={[8, 1]} />
+                <meshStandardMaterial color="#4b5563" />
+              </mesh>
+              <Text 
+                position={[0, 0, 0.1]} 
+                fontSize={0.15} 
+                color="white" 
+                anchorX="center"
+                maxWidth={7.5}
+              >
+                {creatorInfo || 'Click to add creator info'}
+              </Text>
+            </group>
+
+            {/* Navigation buttons */}
+            <group position={[0, -2.5, 0]}>
+              <mesh position={[-2, 0, 0]} onClick={handleBack}>
+                <planeGeometry args={[2, 0.8]} />
+                <meshStandardMaterial color="#4b5563" />
+              </mesh>
+              <Text position={[-2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
+                Back
+              </Text>
+
+              <mesh position={[2, 0, 0]} onClick={handleSubmit}>
+                <planeGeometry args={[2, 0.8]} />
+                <meshStandardMaterial color="#22c55e" />
+              </mesh>
+              <Text position={[2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
+                Create Plot
+              </Text>
+            </group>
+          </group>
+        )}
+          
+      </group>
   );
 }
