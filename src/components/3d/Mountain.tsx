@@ -414,8 +414,8 @@ const MountainDemo = () => {
           const groundGeometry = new THREE.PlaneGeometry(200, 200);
           const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x3a5f3a });
           const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-          ground.rotation.x = -Math.PI / 2;
-          ground.position.y = -1;
+          ground.rotation.set(-Math.PI / 2, ground.rotation.y, ground.rotation.z);
+        ground.position.set(ground.position.x, -1, ground.position.z);
           ground.receiveShadow = true;
           scene.add(ground);
           

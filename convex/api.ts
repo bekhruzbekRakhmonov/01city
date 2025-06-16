@@ -152,7 +152,15 @@ export const getUserDashboard = query({
 export const purchasePlot = mutation({
   args: {
     userId: v.string(),
+    creatorInfo: v.optional(v.string()),
+    description: v.optional(v.string()),
+    garden: v.optional(v.object({
+      enabled: v.boolean(),
+      style: v.string(),
+      elements: v.array(v.string()),
+    })),
     position: v.object({
+      index: v.optional(v.number()),
       x: v.number(),
       z: v.number(),
     }),
@@ -162,8 +170,11 @@ export const purchasePlot = mutation({
     }),
     building: v.optional(v.object({
       type: v.string(),
+      height: v.optional(v.number()),
+      color: v.optional(v.string()),
       modelUrl: v.optional(v.string()),
       customModel: v.optional(v.boolean()),
+      customizations: v.optional(v.any()),
       scale: v.optional(v.object({
         x: v.number(),
         y: v.number(),
@@ -174,8 +185,32 @@ export const purchasePlot = mutation({
         y: v.number(),
         z: v.number(),
       })),
+      selectedModel: v.optional(v.object({
+        id: v.string(),
+        name: v.string(),
+        description: v.optional(v.string()),
+        type: v.string(),
+        modelType: v.optional(v.string()),
+        buildingType: v.optional(v.string()),
+      })),
     })),
     paymentIntentId: v.optional(v.string()),
+    paymentId: v.optional(v.union(v.null(), v.string())), // Allow null or string for paymentId
+    paymentMethod: v.optional(v.string()), // Added to handle payment method (e.g., "credits", "stripe")
+    advertising: v.optional(v.object({
+      enabled: v.boolean(),
+      companyName: v.string(),
+      website: v.optional(v.string()),
+      logoUrl: v.optional(v.string()),
+      logoFileName: v.optional(v.string()),
+      description: v.optional(v.string()),
+      contactEmail: v.optional(v.string()),
+      bannerStyle: v.optional(v.string()),
+      bannerPosition: v.optional(v.string()),
+      bannerColor: v.optional(v.string()),
+      textColor: v.optional(v.string()),
+      animationStyle: v.optional(v.string()),
+    })),
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
@@ -203,9 +238,10 @@ export const purchasePlot = mutation({
       .first();
     
     if (!user) {
+      const username = args.metadata?.username || `user_${args.userId.slice(-8)}`;
       const userId = await ctx.db.insert("users", {
         userId: args.userId,
-        username: `user_${args.userId.slice(-8)}`,
+        username,
         email: "",
         credits: 0,
         totalSpent: 0,
@@ -253,33 +289,42 @@ export const purchasePlot = mutation({
     let transactionId = null;
     
     if (totalCost > 0) {
-      if (!args.paymentIntentId) {
-        throw new Error("Payment required but no payment intent provided");
+      if (user.credits >= totalCost) {
+        // Pay with credits
+        await ctx.db.patch(user._id, { credits: user.credits - totalCost });
+        paymentStatus = "paid_with_credits";
+        // Optionally, create a transaction record for credit payments
+        // transactionId = await ctx.db.insert("transactions", { ... }); 
+      } else if (!args.paymentIntentId) {
+        throw new Error("Payment required (and insufficient credits) but no payment intent provided");
+      } else {
+        // Verify payment was successful
+        const transaction = await ctx.db
+          .query("transactions")
+          .filter((q) => q.eq(q.field("transactionId"), args.paymentIntentId))
+          .first();
+        
+        if (!transaction || transaction.status !== "completed") {
+          throw new Error("Payment not completed");
+        }
+        
+        if (transaction.amount !== totalCost) {
+          throw new Error("Payment amount mismatch");
+        }
+        
+        paymentStatus = "paid";
+        transactionId = transaction._id;
       }
-      
-      // Verify payment was successful
-      const transaction = await ctx.db
-        .query("transactions")
-        .filter((q) => q.eq(q.field("transactionId"), args.paymentIntentId))
-        .first();
-      
-      if (!transaction || transaction.status !== "completed") {
-        throw new Error("Payment not completed");
-      }
-      
-      if (transaction.amount !== totalCost) {
-        throw new Error("Payment amount mismatch");
-      }
-      
-      paymentStatus = "paid";
-      transactionId = transaction._id;
     }
     
     // Create the plot
     const plotId = await ctx.db.insert("plots", {
       userId: args.userId,
-      username: user.username || `user_${args.userId.slice(-8)}`,
-      position: args.position,
+      username: args.metadata?.username || user.username || `user_${args.userId.slice(-8)}`,
+      position: {
+        x: args.position.x,
+        z: args.position.z,
+      },
       size: args.size,
       mainBuilding: {
         type: args.building?.type || "empty",
@@ -300,6 +345,16 @@ export const purchasePlot = mutation({
         enabled: true,
         modelUrl: args.building.modelUrl,
         modelType: "glb",
+        uploadedAt: timestamp,
+      } : undefined,
+      advertising: args.advertising ? {
+        enabled: args.advertising.enabled,
+        companyName: args.advertising.companyName,
+        website: args.advertising.website,
+        logoUrl: args.advertising.logoUrl,
+        logoFileName: args.advertising.logoFileName,
+        description: args.advertising.description,
+        contactEmail: args.advertising.contactEmail,
         uploadedAt: timestamp,
       } : undefined,
       createdAt: timestamp,

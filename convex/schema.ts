@@ -72,6 +72,18 @@ export default defineSchema({
       uploadedAt: v.optional(v.number()),
     })),
     
+    // Advertising information for company promotion
+    advertising: v.optional(v.object({
+      enabled: v.boolean(),
+      companyName: v.string(),
+      website: v.optional(v.string()), // Company website URL
+      logoUrl: v.optional(v.string()), // URL to uploaded SVG logo
+      logoFileName: v.optional(v.string()), // Original filename of the logo
+      description: v.optional(v.string()), // Company/product description
+      contactEmail: v.optional(v.string()), // Contact email for inquiries
+      uploadedAt: v.optional(v.number()),
+    })),
+    
     createdAt: v.number(),
     updatedAt: v.number(),
   }),

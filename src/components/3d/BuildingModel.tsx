@@ -31,14 +31,15 @@ export function BuildingModel({
   selected = false,
   ...props
 }: BuildingModelProps) {
+  console.log("modelatype", modelType)
   const group = useRef<THREE.Group>(null);
-      const modelPath = `/buildings3dmodel/${modelType === 'low_poly' ? 'low_poly_building' : 'sugarcube_corner'}.glb`;
+  const modelPath = `/buildings3dmodel/${modelType === 'low_poly' ? 'low_poly_building' : 'sugarcube_corner'}.glb`;
   const { scene } = useGLTF(modelPath) as unknown as GLTF;
 
   // Clone the scene to avoid sharing materials between instances
   const model = useMemo(() => {
     const modelClone = scene.clone();
-    
+
     // Apply color if provided
     if (color) {
       modelClone.traverse((child) => {

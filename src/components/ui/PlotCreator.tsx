@@ -1,39 +1,42 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUser } from '@clerk/nextjs';
-import { Html, Text } from '@react-three/drei';
-import * as THREE from 'three';
 import PaymentModal from './PaymentModal';
 import ModelUploader from './ModelUploader';
+import BuildingModelSelector from './BuildingModelSelector';
+import BannerStyleSelector from './BannerStyleSelector';
 
 interface PlotCreatorProps {
   initialPosition: { x: number; z: number };
   onComplete?: () => void;
+  onClose: () => void;
 }
 
-export function PlotCreator({ initialPosition, onComplete }: PlotCreatorProps) {
-  const [step, setStep] = useState(1); // 1: Land Type, 2: Building Type, 3: Custom Model, 4: Customization, 5: Payment
+export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreatorProps) {
+  const [step, setStep] = useState(1); // 1: Land Type & Model Selection, 2: Customization, 3: Review & Payment
   const { user } = useUser();
   const purchasePlot = useMutation(api.api.purchasePlot);
-  const userInfo = useQuery(api.users.getCurrentUser, { userId: user?.id });
+  const userInfo = useQuery(api.users.getCurrentUser, { userId: user?.id || undefined });
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Use the provided initial position
   const [position] = useState(initialPosition);
-  
+
   // Land type selection
-  const [landType, setLandType] = useState<'free' | 'paid'>('free');
-  
+  const [landType, setLandType] = useState<'free' | 'premium'>('free');
+
   // Main building configuration
   const [mainBuilding, setMainBuilding] = useState({
     type: 'house',
     height: 5,
     color: '#4A90E2',
     rotation: 0,
-    customizations: {}
+    customizations: {},
+    modelData: null as any // Store selected model data
   });
-  
+
   // Custom model configuration
   const [customModel, setCustomModel] = useState({
     enabled: false,
@@ -42,43 +45,52 @@ export function PlotCreator({ initialPosition, onComplete }: PlotCreatorProps) {
     name: '',
     description: ''
   });
-  
+
   // Garden configuration
   const [garden, setGarden] = useState({
     enabled: true,
     style: 'simple',
     elements: ['tree', 'bush', 'flower'],
   });
-  
+
   // Sub-buildings configuration
   const [subBuildings, setSubBuildings] = useState<any[]>([]);
-  
+
   // Plot information
   const [description, setDescription] = useState('');
   const [creatorInfo, setCreatorInfo] = useState('');
-  
+
+  // Advertising configuration
+  const [advertising, setAdvertising] = useState({
+    enabled: false,
+    companyName: '',
+    website: '',
+    logoFile: null as File | null,
+    logoUrl: '',
+    description: '',
+    contactEmail: '',
+    bannerStyle: 'classic',
+    bannerPosition: 'front',
+    bannerColor: '#ffffff',
+    textColor: '#333333',
+    animationStyle: 'none',
+  });
+
   // Payment state
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showModelUploader, setShowModelUploader] = useState(false);
-  
-  // Building types
-  const buildingTypes = ['house', 'skyscraper', 'shop', 'tower', 'techCampus', 'startupOffice', 'dataCenter'];
-  const subBuildingTypes = ['cafe', 'studio', 'gallery', 'gazebo', 'fountain', 'techLounge', 'bikeStation', 'innovationLab'];
-  
-  // Garden elements
-  const gardenElements = ['tree', 'bush', 'flower', 'rock', 'pond', 'solarPanel', 'sculpture'];
-  
+
   // Calculate pricing
-  const baseLandPrice = landType === 'paid' ? 1000 : 0; // $10.00 for paid land
+  const baseLandPrice = landType === 'premium' ? 1000 : 0; // $10.00 for premium land
   const customModelPrice = customModel.enabled ? 2000 : 0; // $20.00 for custom model
   const totalPrice = baseLandPrice + customModelPrice;
-  
+
   // Check if user has enough credits for free land
   const hasEnoughCredits = userInfo?.freeSquares && userInfo.freeSquares > 0;
-  
+
   // Handle file upload for custom models
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -87,7 +99,7 @@ export function PlotCreator({ initialPosition, onComplete }: PlotCreatorProps) {
       const validTypes = ['model/gltf-binary', 'model/gltf+json', 'application/octet-stream'];
       const validExtensions = ['.glb', '.gltf'];
       const hasValidExtension = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-      
+
       if (hasValidExtension || validTypes.includes(file.type)) {
         setCustomModel({
           ...customModel,
@@ -99,7 +111,7 @@ export function PlotCreator({ initialPosition, onComplete }: PlotCreatorProps) {
       }
     }
   };
-  
+
   // Handle garden elements
   const toggleGardenElement = (element: string) => {
     if (garden.elements.includes(element)) {
@@ -114,54 +126,124 @@ export function PlotCreator({ initialPosition, onComplete }: PlotCreatorProps) {
       });
     }
   };
-  
+
   const handleNext = () => {
-    if (step < 5) {
+    if (step < 3) {
       setStep(step + 1);
     } else {
       handleSubmit();
     }
   };
-  
+
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
     }
   };
-  
+
+  const handlePrevious = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
+  };
+
   // Submit the plot
   const handleSubmit = async () => {
-    if (!user) return;
-    
+    if (!user) {
+      setPaymentError("Please sign in to create a plot.");
+      return;
+    }
+
+    if (isSubmitting || isProcessingPayment) {
+      return; // Prevent double submission
+    }
+
+    setIsSubmitting(true);
     setIsProcessingPayment(true);
     setPaymentError('');
-    
+
     try {
-      // Calculate total cost
-      let totalCost = 0;
-      if (landType === 'paid') {
-        totalCost += 10; // Base land cost
-      }
-      if (customModel.enabled && customModel.file) {
-        totalCost += 5; // Custom model fee
-      }
-      
-      // Show payment modal if payment is needed
-      if (totalCost > 0 && !paymentId) {
-        setShowPaymentModal(true);
+      if (!userInfo) {
+        setPaymentError("User information is loading. Please try again shortly.");
         setIsProcessingPayment(false);
         return;
       }
-      
+
+      // Backend-aligned cost calculation
+      const currentUser = userInfo; // Assuming userInfo is the direct user object from useQuery
+      const plotSize = { width: 10, depth: 10 }; // Fixed in current purchasePlot call
+      const totalSquares = plotSize.width * plotSize.depth;
+      const userFreeSquaresUsed = currentUser.freeSquaresUsed || 0;
+      const baseFreeSquaresLimit = currentUser.freeSquaresLimit || 25;
+
+      let subscriptionBonusSquares = 0;
+      if (currentUser.subscriptionTier === "basic") {
+        subscriptionBonusSquares = 50;
+      } else if (currentUser.subscriptionTier === "premium") {
+        subscriptionBonusSquares = 100;
+      }
+      const totalFreeSquaresAvailable = baseFreeSquaresLimit + subscriptionBonusSquares;
+
+      const remainingFreeSquares = Math.max(0, totalFreeSquaresAvailable - userFreeSquaresUsed);
+      const freeSquaresToUse = Math.min(totalSquares, remainingFreeSquares);
+      const paidSquares = totalSquares - freeSquaresToUse;
+
+      const calculatedPlotCost = paidSquares * 100; // Backend price per square: 100 credits
+
+      let calculatedCustomModelFee = 0;
+      if (customModel.enabled) { // If a custom model is part of the building args
+        if (currentUser.subscriptionTier === "premium") {
+          calculatedCustomModelFee = 0;
+        } else if (currentUser.subscriptionTier === "basic") {
+          calculatedCustomModelFee = 1000; // Backend fee: 1000 credits
+        } else { // free tier
+          calculatedCustomModelFee = 2000; // Backend fee: 2000 credits
+        }
+      }
+
+      const predictedBackendTotalCost = calculatedPlotCost + calculatedCustomModelFee;
+      const userCredits = currentUser.credits || 0;
+
+      const requiresStripePayment = predictedBackendTotalCost > 0 && userCredits < predictedBackendTotalCost;
+
+      if (requiresStripePayment && !paymentId) {
+        setShowPaymentModal(true);
+        setIsProcessingPayment(false);
+        setIsSubmitting(false);
+        return;
+      }
+
+      let finalPaymentMethod = 'free';
+      if (predictedBackendTotalCost > 0) {
+        if (userCredits >= predictedBackendTotalCost) {
+          finalPaymentMethod = 'credits';
+        } else {
+          finalPaymentMethod = 'stripe';
+        }
+      }
+
       // Prepare building data
       const buildingData = {
         type: mainBuilding.type,
         height: mainBuilding.height,
         color: mainBuilding.color,
-        rotation: [mainBuilding.rotation, 0, 0],
-        customizations: mainBuilding.customizations
+        rotation: {
+          x: 0,
+          y: mainBuilding.rotation,
+          z: 0
+        },
+        customizations: mainBuilding.customizations,
+        // Store selected model information
+        selectedModel: mainBuilding.modelData ? {
+          id: mainBuilding.modelData.id,
+          name: mainBuilding.modelData.name,
+          description: mainBuilding.modelData.description,
+          type: mainBuilding.modelData.type,
+          modelType: mainBuilding.modelData.modelType,
+          buildingType: mainBuilding.modelData.buildingType
+        } : null
       };
-      
+
       // Prepare custom model data if enabled
       const customModelData = customModel.enabled ? {
         enabled: true,
@@ -171,20 +253,42 @@ export function PlotCreator({ initialPosition, onComplete }: PlotCreatorProps) {
         // and get back a URL. For now, we'll use a placeholder.
         modelUrl: customModel.file ? `uploads/${customModel.file.name}` : ''
       } : undefined;
-      
+
       await purchasePlot({
+        userId: user.id,
         position,
         size: { width: 10, depth: 10 },
-        building: buildingData,
-        customModel: customModelData,
+        building: {
+          ...buildingData,
+          customModel: customModel.enabled, // Pass the boolean flag
+          modelUrl: customModel.enabled ? customModel.modelUrl : undefined,
+        },
         garden: garden.enabled ? garden : undefined,
-        subBuildings: subBuildings.length > 0 ? subBuildings : undefined,
         description,
         creatorInfo,
-        paymentMethod: landType === 'free' ? 'credits' : 'stripe',
-        paymentId
+        paymentMethod: finalPaymentMethod,
+        paymentIntentId: paymentId,
+        advertising: advertising.enabled ? {
+          enabled: advertising.enabled,
+          companyName: advertising.companyName,
+          website: advertising.website,
+          logoUrl: advertising.logoUrl,
+          logoFileName: advertising.logoFile?.name,
+          description: advertising.description,
+          contactEmail: advertising.contactEmail,
+          bannerStyle: advertising.bannerStyle,
+          bannerPosition: advertising.bannerPosition,
+          bannerColor: advertising.bannerColor,
+          textColor: advertising.textColor,
+          animationStyle: advertising.animationStyle,
+        } : undefined,
+        metadata: {
+          landType,
+          customModel: customModel.enabled,
+          username: user.username || user.firstName || `user_${user.id.slice(-8)}`,
+        },
       });
-      
+
       // Reset form or navigate away
       if (onComplete) onComplete();
     } catch (error: any) {
@@ -192,16 +296,19 @@ export function PlotCreator({ initialPosition, onComplete }: PlotCreatorProps) {
       setPaymentError(error.message || 'Failed to create plot. Please try again.');
     } finally {
       setIsProcessingPayment(false);
+      setIsSubmitting(false);
     }
   };
-  
+
   const handlePaymentSuccess = (newPaymentId: string) => {
     setPaymentId(newPaymentId);
     setShowPaymentModal(false);
+    setIsProcessingPayment(false);
+    setIsSubmitting(false);
     // Continue with plot creation
     handleSubmit();
   };
-  
+
   const handleModelUpload = (modelData: { url: string; name: string; description: string }) => {
     setCustomModel({
       enabled: true,
@@ -212,529 +319,716 @@ export function PlotCreator({ initialPosition, onComplete }: PlotCreatorProps) {
     });
     setShowModelUploader(false);
   };
-  
-  return (
-    <>
-      <Html>
-        <div style={{ position: 'fixed', top: 0, left: 0, pointerEvents: 'none' }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".glb,.gltf"
-            style={{ display: 'none' }}
-            onChange={handleFileUpload}
-          />
-        </div>
-        {showPaymentModal && (
-          <PaymentModal
-            amount={totalPrice}
-            onSuccess={handlePaymentSuccess}
-            onClose={() => setShowPaymentModal(false)}
-          />
-        )}
-        {showModelUploader && (
-          <ModelUploader
-            onUpload={handleModelUpload}
-            onClose={() => setShowModelUploader(false)}
-          />
-        )}
-      </Html>
-      
-      <group position={[0, 5, 0]} rotation={[0, 0, 0]}>
-        {/* Background panel */}
-        <mesh position={[0, 0, -0.1]}>
-          <planeGeometry args={[12, 10]} />
-          <meshStandardMaterial color="#1f2937" opacity={0.9} transparent />
-        </mesh>
 
-        {/* Title */}
-        <Text
-          position={[0, 4, 0]}
-          fontSize={0.5}
-          color="white"
-          anchorX="center"
-          anchorY="middle"
-        >
-          Create Your Plot
-        </Text>
+  const modalOverlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  };
+
+  const modalContentStyle: React.CSSProperties = {
+    backgroundColor: '#1f2937',
+    padding: '30px',
+    borderRadius: '12px',
+    color: 'white',
+    width: '600px',
+    maxWidth: '90vw',
+    maxHeight: '80vh',
+    overflow: 'auto',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    position: 'relative',
+  };
+
+  const titleStyle: React.CSSProperties = {
+    fontSize: '1.8em',
+    marginBottom: '20px',
+    textAlign: 'center',
+    color: '#3b82f6',
+    fontWeight: 'bold',
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    padding: '12px 24px',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '1em',
+    fontWeight: '500',
+    transition: 'all 0.2s',
+  };
+
+  const primaryButtonStyle: React.CSSProperties = {
+    ...buttonStyle,
+    backgroundColor: '#3b82f6',
+    color: 'white',
+  };
+
+  const secondaryButtonStyle: React.CSSProperties = {
+    ...buttonStyle,
+    backgroundColor: '#6b7280',
+    color: 'white',
+  };
+
+  const successButtonStyle: React.CSSProperties = {
+    ...buttonStyle,
+    backgroundColor: '#10b981',
+    color: 'white',
+  };
+
+  const closeButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '15px',
+    right: '20px',
+    background: 'none',
+    border: 'none',
+    color: '#9ca3af',
+    fontSize: '24px',
+    cursor: 'pointer',
+    padding: '0',
+    width: '30px',
+    height: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
+
+  return (
+    <div style={modalOverlayStyle} onClick={step === 1 ? onClose : undefined}>
+      <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
+        {step === 1 && (
+          <button
+            style={closeButtonStyle}
+            onClick={onClose}
+            onMouseOver={(e) => e.currentTarget.style.color = 'white'}
+            onMouseOut={(e) => e.currentTarget.style.color = '#9ca3af'}
+          >
+            ×
+          </button>
+        )}
+        <h2 style={titleStyle}>Create Your Plot</h2>
 
         {/* Step 1: Land Type Selection */}
         {step === 1 && (
-          <group>
-            <Text
-              position={[0, 3, 0]}
-              fontSize={0.3}
-              color="white"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Choose Land Type
-            </Text>
-            
-            {/* Free Land Option */}
-            <group position={[-2.5, 1, 0]} rotation={[0, 0, 0]} onClick={() => setLandType('free')}>
-              <mesh>
-                <planeGeometry args={[4, 2]} />
-                <meshStandardMaterial 
-                  color={landType === 'free' ? "#22c55e" : "#4b5563"} 
-                />
-              </mesh>
-              <Text position={[0, 0.3, 0.1]} fontSize={0.25} color="white" anchorX="center">
-                Free Land
-              </Text>
-              <Text position={[0, -0.1, 0.1]} fontSize={0.15} color="white" anchorX="center">
-                Use Credits: {userInfo?.freeSquares || 0}
-              </Text>
-              <Text position={[0, -0.4, 0.1]} fontSize={0.15} color="white" anchorX="center">
-                {hasEnoughCredits ? 'Available' : 'No Credits'}
-              </Text>
-            </group>
-            
-            {/* Paid Land Option */}
-            <group position={[2.5, 1, 0]} rotation={[0, 0, 0]} onClick={() => setLandType('paid')}>
-              <mesh>
-                <planeGeometry args={[4, 2]} />
-                <meshStandardMaterial 
-                  color={landType === 'paid' ? "#3b82f6" : "#4b5563"} 
-                />
-              </mesh>
-              <Text position={[0, 0.3, 0.1]} fontSize={0.25} color="white" anchorX="center">
-                Premium Land
-              </Text>
-              <Text position={[0, -0.1, 0.1]} fontSize={0.15} color="white" anchorX="center">
-                $10.00
-              </Text>
-              <Text position={[0, -0.4, 0.1]} fontSize={0.15} color="white" anchorX="center">
-                Full Features
-              </Text>
-            </group>
-            
-            {/* Next Button */}
-            <group position={[0, -2, 0]} rotation={[0, 0, 0]}>
-              <mesh position={[0, 0, 0]} onClick={handleNext}>
-                <planeGeometry args={[3, 0.8]} />
-                <meshStandardMaterial 
-                  color={(landType === 'free' && hasEnoughCredits) || landType === 'paid' ? "#3b82f6" : "#6b7280"} 
-                />
-              </mesh>
-              <Text position={[0, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
+          <div>
+            <h3 style={{ fontSize: '1.25em', marginBottom: '20px', textAlign: 'center', color: '#e5e7eb' }}>Choose Land Type</h3>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '30px', marginBottom: '30px' }}>
+              <div
+                style={{
+                  cursor: 'pointer',
+                  padding: '24px',
+                  borderRadius: '8px',
+                  border: `2px solid ${landType === 'free' ? '#10b981' : '#6b7280'}`,
+                  backgroundColor: landType === 'free' ? '#064e3b' : '#374151',
+                  textAlign: 'center',
+                  minWidth: '150px',
+                  transition: 'all 0.2s'
+                }}
+                onClick={() => setLandType('free')}
+              >
+                <h4 style={{ fontSize: '1.1em', fontWeight: '600', marginBottom: '8px' }}>Free Land</h4>
+                <p style={{ margin: '4px 0', color: '#9ca3af' }}>Use Credits: {userInfo?.freeSquares || 0}</p>
+                <p style={{ margin: '4px 0', color: hasEnoughCredits ? '#10b981' : '#ef4444' }}>{hasEnoughCredits ? 'Available' : 'No Credits'}</p>
+              </div>
+              <div
+                style={{
+                  cursor: 'pointer',
+                  padding: '24px',
+                  borderRadius: '8px',
+                  border: `2px solid ${landType === 'premium' ? '#3b82f6' : '#6b7280'}`,
+                  backgroundColor: landType === 'premium' ? '#1e3a8a' : '#374151',
+                  textAlign: 'center',
+                  minWidth: '150px',
+                  transition: 'all 0.2s'
+                }}
+                onClick={() => setLandType('premium')}
+              >
+                <h4 style={{ fontSize: '1.1em', fontWeight: '600', marginBottom: '8px' }}>Premium Land</h4>
+                <p style={{ margin: '4px 0', color: '#9ca3af' }}>$10.00</p>
+                <p style={{ margin: '4px 0', color: '#9ca3af' }}>Full Features</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                onClick={handleNext}
+                disabled={(landType === 'free' && !hasEnoughCredits)}
+                style={{
+                  ...((landType === 'free' && !hasEnoughCredits) ? { ...buttonStyle, backgroundColor: '#6b7280', cursor: 'not-allowed' } : primaryButtonStyle)
+                }}
+              >
                 {(landType === 'free' && !hasEnoughCredits) ? 'No Credits Available' : 'Next'}
-              </Text>
-            </group>
-          </group>
+              </button>
+            </div>
+          </div>
         )}
 
-        {/* Step 2: Building Type Selection */}
+        {/* Step 2: Building Type & Model Selection */}
         {step === 2 && (
-          <group>
-            <Text
-              position={[0, 3, 0]}
-              fontSize={0.3}
-              color="white"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Choose Building Type
-            </Text>
-            
-            {/* Building type options */}
-            <group position={[0, 0.5, 0]} rotation={[0, 0, 0]}>
-              {buildingTypes.map((type, index) => {
-                const row = Math.floor(index / 3);
-                const col = index % 3;
-                const x = (col - 1) * 3;
-                const y = 1.5 - row * 1.2;
-                
-                return (
-                  <group key={type} position={[x, y, 0]} onClick={() => {
-                    setMainBuilding({ ...mainBuilding, type });
-                  }}>
-                    <mesh>
-                      <planeGeometry args={[2.5, 1]} />
-                      <meshStandardMaterial 
-                        color={mainBuilding.type === type ? "#3b82f6" : "#4b5563"} 
-                      />
-                    </mesh>
-                    <Text
-                      position={[0, 0, 0.1]}
-                      fontSize={0.18}
-                      color="white"
-                      anchorX="center"
-                      anchorY="middle"
-                    >
-                      {type}
-                    </Text>
-                  </group>
-                );
-              })}
-            </group>
-            
-            {/* Navigation buttons */}
-            <group position={[0, -2.5, 0]} rotation={[0, 0, 0]}>
-              <mesh position={[-2, 0, 0]} onClick={handleBack}>
-                <planeGeometry args={[2, 0.8]} />
-                <meshStandardMaterial color="#4b5563" />
-              </mesh>
-              <Text position={[-2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
-                Back
-              </Text>
+          <div>
+            <h3 style={{ fontSize: '1.25em', marginBottom: '20px', textAlign: 'center', color: '#e5e7eb' }}>Building Type & Model Selection</h3>
 
-              <mesh position={[2, 0, 0]} onClick={handleNext}>
-                <planeGeometry args={[2, 0.8]} />
-                <meshStandardMaterial color="#3b82f6" />
-              </mesh>
-              <Text position={[2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
-                Next
-              </Text>
-            </group>
-          </group>
-        )}
-
-        {/* Step 3: Custom Model Upload */}
-        {step === 3 && (
-          <group>
-            <Text
-              position={[0, 3, 0]}
-              fontSize={0.3}
-              color="white"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Custom 3D Model (Optional)
-            </Text>
-            
-            {/* Custom model toggle */}
-            <group position={[0, 2, 0]} rotation={[0, 0, 0]}>
-              <mesh 
-                onClick={() => setCustomModel({ ...customModel, enabled: !customModel.enabled })}
-              >
-                <planeGeometry args={[6, 0.8]} />
-                <meshStandardMaterial color={customModel.enabled ? "#3b82f6" : "#4b5563"} />
-              </mesh>
-              <Text position={[0, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
-                {customModel.enabled ? "Custom Model Enabled (+$20)" : "Use Default Models"}
-              </Text>
-            </group>
-            
-            {/* File upload section */}
-                {customModel.enabled && (
-                  <group>
-                    <group position={[0, 1, 0]} rotation={[0, 0, 0]}>
-                      <mesh onClick={() => setShowModelUploader(true)}>
-                        <planeGeometry args={[8, 1]} />
-                        <meshStandardMaterial color="#374151" />
-                      </mesh>
-                      <Text position={[0, 0, 0.1]} fontSize={0.18} color="white" anchorX="center">
-                        {customModel.file ? customModel.file.name : "Click to Upload GLB/GLTF File"}
-                      </Text>
-                    </group>
-                    
-                    {/* Model info display */}
-                    {customModel.modelUrl && (
-                      <group position={[0, 0, 0]} rotation={[0, 0, 0]}>
-                        <Text position={[0, 0.3, 0]} fontSize={0.2} color="#22c55e" anchorX="center">
-                          ✓ Model uploaded: {customModel.name}
-                        </Text>
-                        <Text position={[0, -0.1, 0]} fontSize={0.15} color="#9ca3af" anchorX="center">
-                          {customModel.description}
-                        </Text>
-                      </group>
-                    )}
-                    
-                    {/* Model name input */}
-                    {!customModel.modelUrl && (
-                      <group position={[0, 0, 0]}>
-                        <Text position={[0, 0.3, 0]} fontSize={0.15} color="white" anchorX="center">
-                          Model Name
-                        </Text>
-                        <mesh>
-                          <planeGeometry args={[6, 0.6]} />
-                          <meshStandardMaterial color="#374151" />
-                        </mesh>
-                        <Text position={[0, 0, 0.1]} fontSize={0.15} color="white" anchorX="center">
-                          {customModel.name || 'Click to enter name'}
-                        </Text>
-                      </group>
-                    )}
-                    
-                    {/* Model description input */}
-                    {!customModel.modelUrl && (
-                      <group position={[0, -1, 0]} rotation={[0, 0, 0]}>
-                        <Text position={[0, 0.3, 0]} fontSize={0.15} color="white" anchorX="center">
-                          Description
-                        </Text>
-                        <mesh>
-                          <planeGeometry args={[6, 0.6]} />
-                          <meshStandardMaterial color="#374151" />
-                        </mesh>
-                        <Text position={[0, 0, 0.1]} fontSize={0.15} color="white" anchorX="center">
-                          {customModel.description || 'Click to enter description'}
-                        </Text>
-                      </group>
-                    )}
-                  </group>
-                )}
-            
-            {/* Navigation buttons */}
-            <group position={[0, -2.5, 0]}>
-              <mesh position={[-2, 0, 0]} onClick={handleBack}>
-                <planeGeometry args={[2, 0.8]} />
-                <meshStandardMaterial color="#4b5563" />
-              </mesh>
-              <Text position={[-2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
-                Back
-              </Text>
-
-              <mesh position={[2, 0, 0]} onClick={handleNext}>
-                <planeGeometry args={[2, 0.8]} />
-                <meshStandardMaterial color="#3b82f6" />
-              </mesh>
-              <Text position={[2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
-                Next
-              </Text>
-            </group>
-          </group>
-        )}
-
-        {/* Step 4: Building Customization */}
-        {step === 4 && (
-          <group>
-            <Text
-              position={[0, 3, 0]}
-              fontSize={0.3}
-              color="white"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Customize Building
-            </Text>
-
-            {/* Height control */}
-            <group position={[-3, 1, 0]} rotation={[0, 0, 0]}>
-              <Text position={[0, 0.5, 0]} fontSize={0.2} color="white" anchorX="center">
-                Height
-              </Text>
-              <group position={[0, 0, 0]}>
-                <mesh 
-                  position={[-0.5, 0, 0]} 
-                  onClick={() => setMainBuilding({ ...mainBuilding, height: Math.max(3, mainBuilding.height - 1) })}
-                >
-                  <planeGeometry args={[0.5, 0.5]} />
-                  <meshStandardMaterial color="#4b5563" />
-                </mesh>
-                <Text position={[0, 0, 0]} fontSize={0.2} color="white" anchorX="center">
-                  {mainBuilding.height}
-                </Text>
-                <mesh 
-                  position={[0.5, 0, 0]} 
-                  onClick={() => setMainBuilding({ ...mainBuilding, height: Math.min(20, mainBuilding.height + 1) })}
-                >
-                  <planeGeometry args={[0.5, 0.5]} />
-                  <meshStandardMaterial color="#4b5563" />
-                </mesh>
-              </group>
-            </group>
-
-            {/* Color selection */}
-            <group position={[0, 1, 0]}>
-              <Text position={[0, 0.5, 0]} fontSize={0.2} color="white" anchorX="center">
-                Color
-              </Text>
-              <group position={[0, 0, 0]}>
-                {['#4A90E2', '#E24A90', '#4AE290', '#E2904A'].map((color, i) => (
-                  <mesh
-                    key={color}
-                    position={[(i - 1.5) * 0.8, 0, 0]}
-                    onClick={() => setMainBuilding({ ...mainBuilding, color })}
+            {/* Model Selection for Premium Users */}
+            {landType === 'premium' && mainBuilding.type && (
+              <div style={{ marginBottom: '24px' }}>
+                <h4 style={{ fontSize: '18px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Choose Model Type</h4>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '16px'
+                }}>
+                  <div
+                    style={{
+                      backgroundColor: !customModel.enabled ? '#3b82f6' : '#374151',
+                      color: !customModel.enabled ? 'white' : '#d1d5db',
+                      cursor: 'pointer',
+                      padding: '16px',
+                      textAlign: 'center' as const,
+                      borderRadius: '8px',
+                      border: !customModel.enabled ? '2px solid #60a5fa' : '2px solid transparent',
+                      transition: 'all 0.2s'
+                    }}
+                    onClick={() => setCustomModel({ ...customModel, enabled: false })}
+                    onMouseOver={(e) => {
+                      if (customModel.enabled) {
+                        e.currentTarget.style.backgroundColor = '#4b5563';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (customModel.enabled) {
+                        e.currentTarget.style.backgroundColor = '#374151';
+                      }
+                    }}
                   >
-                    <planeGeometry args={[0.6, 0.6]} />
-                    <meshStandardMaterial color={color} />
-                  </mesh>
-                ))}
-              </group>
-            </group>
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>Free Models</div>
+                    <div style={{ fontSize: '14px', opacity: 0.8 }}>Choose from our collection</div>
+                  </div>
 
-            {/* Rotation control */}
-            <group position={[3, 1, 0]} rotation={[0, 0, 0]}>
-              <Text position={[0, 0.5, 0]} fontSize={0.2} color="white" anchorX="center">
-                Rotation
-              </Text>
-              <group position={[0, 0, 0]}>
-                <mesh 
-                  position={[-0.5, 0, 0]} 
-                  onClick={() => setMainBuilding({ ...mainBuilding, rotation: (mainBuilding.rotation - Math.PI / 4) % (Math.PI * 2) })}
-                >
-                  <planeGeometry args={[0.5, 0.5]} />
-                  <meshStandardMaterial color="#4b5563" />
-                </mesh>
-                <Text position={[0, 0, 0]} fontSize={0.2} color="white" anchorX="center">
-                  {Math.round((mainBuilding.rotation * 180) / Math.PI)}°
-                </Text>
-                <mesh 
-                  position={[0.5, 0, 0]} 
-                  onClick={() => setMainBuilding({ ...mainBuilding, rotation: (mainBuilding.rotation + Math.PI / 4) % (Math.PI * 2) })}
-                >
-                  <planeGeometry args={[0.5, 0.5]} />
-                  <meshStandardMaterial color="#4b5563" />
-                </mesh>
-              </group>
-            </group>
-            
-            {/* Garden toggle */}
-            <group position={[0, 0, 0]}>
-              <mesh 
-                onClick={() => setGarden({ ...garden, enabled: !garden.enabled })}
-              >
-                <planeGeometry args={[4, 0.6]} />
-                <meshStandardMaterial color={garden.enabled ? "#22c55e" : "#4b5563"} />
-              </mesh>
-              <Text position={[0, 0, 0.1]} fontSize={0.18} color="white" anchorX="center">
-                {garden.enabled ? "Garden Enabled" : "Garden Disabled"}
-              </Text>
-            </group>
+                  <div
+                    style={{
+                      backgroundColor: customModel.enabled ? '#3b82f6' : '#374151',
+                      color: customModel.enabled ? 'white' : '#d1d5db',
+                      cursor: 'pointer',
+                      padding: '16px',
+                      textAlign: 'center' as const,
+                      borderRadius: '8px',
+                      border: customModel.enabled ? '2px solid #60a5fa' : '2px solid transparent',
+                      transition: 'all 0.2s'
+                    }}
+                    onClick={() => setCustomModel({ ...customModel, enabled: true })}
+                    onMouseOver={(e) => {
+                      if (!customModel.enabled) {
+                        e.currentTarget.style.backgroundColor = '#4b5563';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (!customModel.enabled) {
+                        e.currentTarget.style.backgroundColor = '#374151';
+                      }
+                    }}
+                  >
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>Custom Model</div>
+                    <div style={{ fontSize: '14px', opacity: 0.8 }}>Upload your own 3D model</div>
+                  </div>
+                </div>
 
-            {/* Navigation buttons */}
-            <group position={[0, -2, 0]}>
-              <mesh position={[-2, 0, 0]} onClick={handleBack}>
-                <planeGeometry args={[2, 0.8]} />
-                <meshStandardMaterial color="#4b5563" />
-              </mesh>
-              <Text position={[-2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
-                Back
-              </Text>
-
-              <mesh position={[2, 0, 0]} onClick={handleNext}>
-                <planeGeometry args={[2, 0.8]} />
-                <meshStandardMaterial color="#3b82f6" />
-              </mesh>
-              <Text position={[2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
-                Next
-              </Text>
-            </group>
-          </group>
-        )}
-
-        {/* Step 5: Payment Summary */}
-        {step === 5 && (
-          <group>
-            <Text
-              position={[0, 3, 0]}
-              fontSize={0.3}
-              color="white"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Payment Summary
-            </Text>
-            
-            {/* Cost breakdown */}
-            <group position={[0, 1.5, 0]} rotation={[0, 0, 0]}>
-              <Text position={[0, 0.5, 0]} fontSize={0.2} color="white" anchorX="center">
-                Land: {landType === 'free' ? 'Free (Credits)' : '$10.00'}
-              </Text>
-              {customModel.enabled && (
-                <Text position={[0, 0, 0]} fontSize={0.2} color="white" anchorX="center">
-                  Custom Model: $20.00
-                </Text>
-              )}
-              <Text position={[0, -0.5, 0]} fontSize={0.25} color="#22c55e" anchorX="center">
-                Total: {landType === 'free' && !customModel.enabled ? 'Free' : `$${(totalPrice / 100).toFixed(2)}`}
-              </Text>
-            </group>
-            
-            {/* Error message */}
-            {paymentError && (
-              <Text position={[0, 0.5, 0]} fontSize={0.15} color="#ef4444" anchorX="center">
-                {paymentError}
-              </Text>
+                {/* Custom Model Upload Section */}
+                {customModel.enabled && (
+                  <div style={{
+                    marginTop: '20px',
+                    padding: '20px',
+                    backgroundColor: '#1f2937',
+                    borderRadius: '8px',
+                    border: '1px solid #374151'
+                  }}>
+                    <h5 style={{ fontSize: '16px', marginBottom: '12px', color: '#3b82f6', fontWeight: 'bold' }}>Upload Custom 3D Model</h5>
+                    <input
+                      type="file"
+                      accept=".glb,.gltf,.obj,.fbx"
+                      onChange={handleFileUpload}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        backgroundColor: '#374151',
+                        border: '1px solid #4b5563',
+                        borderRadius: '6px',
+                        color: '#d1d5db',
+                        fontSize: '14px',
+                        marginBottom: '12px'
+                      }}
+                    />
+                    {customModel.file && (
+                      <div style={{
+                        padding: '12px',
+                        backgroundColor: '#065f46',
+                        borderRadius: '6px',
+                        color: '#d1fae5',
+                        fontSize: '14px'
+                      }}>
+                        <strong>File:</strong> {customModel.file.name}<br />
+                        <strong>Size:</strong> {(customModel.file.size / 1024 / 1024).toFixed(2)} MB
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
-            
-            {/* Plot info inputs */}
-            <group position={[0, 0, 0]}>
-              <mesh onClick={() => {
-                const input = prompt('Enter plot description:');
-                if (input) setDescription(input);
-              }}>
-                <planeGeometry args={[8, 0.6]} />
-                <meshStandardMaterial color="#374151" />
-              </mesh>
-              <Text position={[0, 0, 0.1]} fontSize={0.15} color="white" anchorX="center">
-                {description || 'Click to add description (optional)'}
-              </Text>
-            </group>
 
-            {/* Navigation buttons */}
-            <group position={[0, -2, 0]}>
-              <mesh position={[-2, 0, 0]} onClick={handleBack}>
-                <planeGeometry args={[2, 0.8]} />
-                <meshStandardMaterial color="#4b5563" />
-              </mesh>
-              <Text position={[-2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
-                Back
-              </Text>
+            {/* Model Selection */}
+            <div style={{ overflowY: 'auto' }}>
+              <BuildingModelSelector
+                selectedModel={mainBuilding.modelData?.id || ''}
+                onModelSelect={(modelId, modelData) => {
+                  setMainBuilding({
+                    ...mainBuilding,
+                    type: modelData.type === 'model' ? modelData.modelType : modelData.buildingType,
+                    modelData: modelData
+                  });
+                }}
+                className="mb-8"
+              />
+            </div>
 
-              <mesh position={[2, 0, 0]} onClick={handleSubmit}>
-                <planeGeometry args={[2, 0.8]} />
-                <meshStandardMaterial 
-                  color={isProcessingPayment ? "#6b7280" : "#22c55e"} 
-                />
-              </mesh>
-              <Text position={[2, 0, 0.1]} fontSize={0.2} color="white" anchorX="center">
-                {isProcessingPayment ? 'Processing...' : 'Create Plot'}
-              </Text>
-            </group>
-          </group>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px' }}>
+              <button
+                style={secondaryButtonStyle}
+                onClick={handlePrevious}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#4b5563'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#374151'}
+              >
+                Previous
+              </button>
+              <button
+                style={{
+                  ...primaryButtonStyle,
+                  opacity: mainBuilding.type && (landType === 'free' || (landType === 'premium' && (customModel.enabled ? customModel.file : true))) ? 1 : 0.5,
+                  cursor: mainBuilding.type && (landType === 'free' || (landType === 'premium' && (customModel.enabled ? customModel.file : true))) ? 'pointer' : 'not-allowed'
+                }}
+                onClick={handleNext}
+                disabled={!mainBuilding.type || (landType === 'premium' && customModel.enabled && !customModel.file)}
+                onMouseOver={(e) => {
+                  if (mainBuilding.type && (landType === 'free' || (landType === 'premium' && (customModel.enabled ? customModel.file : true)))) {
+                    e.currentTarget.style.backgroundColor = '#2563eb';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (mainBuilding.type && (landType === 'free' || (landType === 'premium' && (customModel.enabled ? customModel.file : true)))) {
+                    e.currentTarget.style.backgroundColor = '#3b82f6';
+                  }
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
         )}
-      </group>
-      
-      {/* Payment Modal */}
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        onSuccess={handlePaymentSuccess}
-        amount={(() => {
-          let total = 0;
-          if (landType === 'paid') total += 10;
-          if (customModel.enabled && customModel.file) total += 5;
-          return total;
-        })()}
-        description={`Land purchase${customModel.enabled ? ' + Custom Model' : ''}`}
-        type={customModel.enabled ? 'custom_model' : 'land'}
-      />
-      
-      {/* Model Uploader Modal */}
+
+        {/* Step 3: Building Customization & Review */}
+        {step === 3 && (
+          <div>
+            <h3 style={{ fontSize: '1.25em', marginBottom: '20px', textAlign: 'center', color: '#e5e7eb' }}>Building Customization & Review</h3>
+
+            {/* Building Name */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Building Name</label>
+              <input
+                type="text"
+                value={customModel.name}
+                onChange={(e) => setCustomModel({ ...customModel, name: e.target.value })}
+                placeholder="Enter building name"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: '#374151',
+                  border: '1px solid #4b5563',
+                  borderRadius: '6px',
+                  color: '#d1d5db',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            {/* Building Description */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Description</label>
+              <textarea
+                value={customModel.description}
+                onChange={(e) => setCustomModel({ ...customModel, description: e.target.value })}
+                placeholder="Describe your building"
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: '#374151',
+                  border: '1px solid #4b5563',
+                  borderRadius: '6px',
+                  color: '#d1d5db',
+                  fontSize: '14px',
+                  resize: 'vertical' as const
+                }}
+              />
+            </div>
+
+            {/* Building Color */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Building Color</label>
+              <input
+                type="color"
+                value={mainBuilding.color}
+                onChange={(e) => setMainBuilding({ ...mainBuilding, color: e.target.value })}
+                style={{
+                  width: '60px',
+                  height: '40px',
+                  backgroundColor: '#374151',
+                  border: '1px solid #4b5563',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
+
+            {/* Advertising Configuration */}
+            <div style={{
+              marginBottom: '24px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <h4 style={{ fontSize: '18px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Company Advertising (Optional)</h4>
+              
+              {/* Enable Advertising Toggle */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={advertising.enabled}
+                    onChange={(e) => setAdvertising({ ...advertising, enabled: e.target.checked })}
+                    style={{ marginRight: '8px' }}
+                  />
+                  <span style={{ color: '#d1d5db', fontWeight: '500' }}>Enable company advertising on this building</span>
+                </label>
+              </div>
+
+              {advertising.enabled && (
+                <>
+                  {/* Company Name */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Company Name *</label>
+                    <input
+                      type="text"
+                      value={advertising.companyName}
+                      onChange={(e) => setAdvertising({ ...advertising, companyName: e.target.value })}
+                      placeholder="Enter your company name"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        backgroundColor: '#374151',
+                        border: '1px solid #4b5563',
+                        borderRadius: '6px',
+                        color: '#d1d5db',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+
+                  {/* Website */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Website</label>
+                    <input
+                      type="url"
+                      value={advertising.website}
+                      onChange={(e) => setAdvertising({ ...advertising, website: e.target.value })}
+                      placeholder="https://yourcompany.com"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        backgroundColor: '#374151',
+                        border: '1px solid #4b5563',
+                        borderRadius: '6px',
+                        color: '#d1d5db',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+
+                  {/* Logo Upload */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Company Logo (SVG format)</label>
+                    <input
+                      type="file"
+                      accept=".svg,image/svg+xml"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setAdvertising({
+                                ...advertising,
+                                logoFile: file,
+                                logoUrl: event.target?.result as string
+                              });
+                            };
+                            reader.readAsDataURL(file);
+                          } else {
+                            alert('Please upload an SVG file only.');
+                          }
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        backgroundColor: '#374151',
+                        border: '1px solid #4b5563',
+                        borderRadius: '6px',
+                        color: '#d1d5db',
+                        fontSize: '14px'
+                      }}
+                    />
+                    {advertising.logoFile && (
+                      <div style={{ marginTop: '8px', color: '#10b981', fontSize: '14px' }}>
+                        ✓ {advertising.logoFile.name} uploaded
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Company Description</label>
+                    <textarea
+                      value={advertising.description}
+                      onChange={(e) => setAdvertising({ ...advertising, description: e.target.value })}
+                      placeholder="Describe your company or products"
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        backgroundColor: '#374151',
+                        border: '1px solid #4b5563',
+                        borderRadius: '6px',
+                        color: '#d1d5db',
+                        fontSize: '14px',
+                        resize: 'vertical' as const
+                      }}
+                    />
+                  </div>
+
+                  {/* Contact Email */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Contact Email</label>
+                    <input
+                      type="email"
+                      value={advertising.contactEmail}
+                      onChange={(e) => setAdvertising({ ...advertising, contactEmail: e.target.value })}
+                      placeholder="contact@yourcompany.com"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        backgroundColor: '#374151',
+                        border: '1px solid #4b5563',
+                        borderRadius: '6px',
+                        color: '#d1d5db',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+
+                  {/* Banner Style Selection */}
+                  <div style={{ marginTop: '24px' }}>
+                    <h4 style={{ fontSize: '16px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Banner Customization</h4>
+                    <BannerStyleSelector
+                      selectedStyle={advertising.bannerStyle}
+                      selectedPosition={advertising.bannerPosition}
+                      selectedBannerColor={advertising.bannerColor}
+                      selectedTextColor={advertising.textColor}
+                      selectedAnimation={advertising.animationStyle}
+                      onStyleChange={(styleId, style) => {
+                        setAdvertising({
+                          ...advertising,
+                          bannerStyle: styleId,
+                          bannerColor: style.preview.bannerColor,
+                          textColor: style.preview.textColor,
+                          animationStyle: style.preview.animationStyle
+                        });
+                      }}
+                      onPositionChange={(positionId) => {
+                        setAdvertising({ ...advertising, bannerPosition: positionId });
+                      }}
+                      onColorChange={(bannerColor, textColor) => {
+                        setAdvertising({ ...advertising, bannerColor, textColor });
+                      }}
+                      onAnimationChange={(animation) => {
+                        setAdvertising({ ...advertising, animationStyle: animation });
+                      }}
+                      companyName={advertising.companyName}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Plot Summary */}
+            <div style={{
+              marginTop: '24px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <h4 style={{ fontSize: '18px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Plot Summary</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '14px' }}>
+                <div style={{ color: '#9ca3af' }}>Land Type:</div>
+                <div style={{ color: '#d1d5db', fontWeight: '500' }}>{landType === 'free' ? 'Free Land' : 'Premium Land'}</div>
+
+                <div style={{ color: '#9ca3af' }}>Building Type:</div>
+                <div style={{ color: '#d1d5db', fontWeight: '500' }}>{mainBuilding.type.charAt(0).toUpperCase() + mainBuilding.type.slice(1)}</div>
+
+                <div style={{ color: '#9ca3af' }}>Model Type:</div>
+                <div style={{ color: '#d1d5db', fontWeight: '500' }}>{customModel.enabled ? 'Custom Model' : 'Free Model'}</div>
+
+                <div style={{ color: '#9ca3af' }}>Position:</div>
+                <div style={{ color: '#d1d5db', fontWeight: '500' }}>({position.x.toFixed(1)}, {position.z.toFixed(1)})</div>
+              </div>
+
+              {/* Cost Breakdown */}
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #374151' }}>
+                <h5 style={{ fontSize: '16px', marginBottom: '12px', color: '#3b82f6', fontWeight: 'bold' }}>Cost Breakdown</h5>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', fontSize: '14px' }}>
+                  <div style={{ color: '#9ca3af' }}>Land Cost:</div>
+                  <div style={{ color: '#d1d5db' }}>{landType === 'free' ? 'Free' : '$10.00'}</div>
+
+                  {customModel.enabled && (
+                    <>
+                      <div style={{ color: '#9ca3af' }}>Custom Model:</div>
+                      <div style={{ color: '#d1d5db' }}>$20.00</div>
+                    </>
+                  )}
+
+                  <div style={{ color: '#3b82f6', fontWeight: 'bold', borderTop: '1px solid #374151', paddingTop: '8px' }}>Total:</div>
+                  <div style={{ color: '#3b82f6', fontWeight: 'bold', borderTop: '1px solid #374151', paddingTop: '8px' }}>
+                    ${(totalPrice / 100).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Error */}
+            {paymentError && (
+              <div style={{
+                marginTop: '16px',
+                padding: '12px',
+                backgroundColor: '#7f1d1d',
+                borderRadius: '6px',
+                color: '#fecaca',
+                fontSize: '14px',
+                textAlign: 'center' as const
+              }}>
+                {paymentError}
+              </div>
+            )}
+
+            {/* Navigation Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px' }}>
+              <button
+                style={secondaryButtonStyle}
+                onClick={handlePrevious}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#4b5563'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#374151'}
+              >
+                Previous
+              </button>
+              <button
+                style={{
+                  ...successButtonStyle,
+                  opacity: isSubmitting || isProcessingPayment ? 0.5 : 1,
+                  cursor: isSubmitting || isProcessingPayment ? 'not-allowed' : 'pointer'
+                }}
+                onClick={handleSubmit}
+                disabled={isSubmitting || isProcessingPayment}
+                onMouseOver={(e) => {
+                  if (!isSubmitting && !isProcessingPayment) {
+                    e.currentTarget.style.backgroundColor = '#047857';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!isSubmitting && !isProcessingPayment) {
+                    e.currentTarget.style.backgroundColor = '#059669';
+                  }
+                }}
+              >
+                {isProcessingPayment ? 'Processing...' : (totalPrice > 0 ? 'Proceed to Payment' : 'Create Plot')}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      {showPaymentModal && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          amount={userInfo ? (() => {
+            const currentUser = userInfo;
+            const plotSize = { width: 10, depth: 10 };
+            const totalSquares = plotSize.width * plotSize.depth;
+            const userFreeSquaresUsed = currentUser.freeSquaresUsed || 0;
+            const baseFreeSquaresLimit = currentUser.freeSquaresLimit || 25;
+
+            let subscriptionBonusSquares = 0;
+            if (currentUser.subscriptionTier === "basic") {
+              subscriptionBonusSquares = 50;
+            } else if (currentUser.subscriptionTier === "premium") {
+              subscriptionBonusSquares = 100;
+            }
+            const totalFreeSquaresAvailable = baseFreeSquaresLimit + subscriptionBonusSquares;
+
+            const remainingFreeSquares = Math.max(0, totalFreeSquaresAvailable - userFreeSquaresUsed);
+            const freeSquaresToUse = Math.min(totalSquares, remainingFreeSquares);
+            const paidSquares = totalSquares - freeSquaresToUse;
+
+            const calculatedPlotCost = paidSquares * 100;
+
+            let calculatedCustomModelFee = 0;
+            if (customModel.enabled) {
+              if (currentUser.subscriptionTier === "premium") {
+                calculatedCustomModelFee = 0;
+              } else if (currentUser.subscriptionTier === "basic") {
+                calculatedCustomModelFee = 1000;
+              } else {
+                calculatedCustomModelFee = 2000;
+              }
+            }
+
+            return calculatedPlotCost + calculatedCustomModelFee;
+          })() : totalPrice}
+          onSuccess={handlePaymentSuccess}
+          onClose={() => setShowPaymentModal(false)}
+          description='Plot Purchase'
+          type={customModel.enabled ? 'custom_model' : 'land'}
+          userId={user?.id}
+        />
+      )}
       {showModelUploader && (
-        <div style={{ 
-          position: 'fixed', 
-          top: '50%', 
-          left: '50%', 
-          transform: 'translate(-50%, -50%)', 
-          zIndex: 1000,
-          backgroundColor: 'white',
-          padding: '20px',
-          borderRadius: '8px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-        }}>
-          <ModelUploader
-            onUploadComplete={handleModelUpload}
-            onUploadError={(error) => console.error('Upload error:', error)}
-          />
-          <button 
-            onClick={() => setShowModelUploader(false)}
-            style={{
-              marginTop: '10px',
-              padding: '8px 16px',
-              backgroundColor: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel
-          </button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-8 rounded-lg max-w-md w-full">
+            <h3 className="text-xl mb-4">Upload Custom Model</h3>
+            <ModelUploader
+              onUploadComplete={handleModelUpload}
+              onUploadError={(error) => setPaymentError(error)}
+            />
+            <button
+              onClick={() => setShowModelUploader(false)}
+              className="mt-4 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded w-full"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

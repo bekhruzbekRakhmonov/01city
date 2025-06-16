@@ -50,7 +50,11 @@ export function Garden({ style, elements, plotSize }: GardenProps) {
       gardenRef.current.children.forEach((child, i) => {
         // Gentle swaying motion
         child.position.y = Math.sin(state.clock.elapsedTime * 0.5 + i * 0.5) * 0.1 + 0.5;
-        child.rotation.y = Math.sin(state.clock.elapsedTime * 0.3 + i * 0.2) * 0.1;
+        child.rotation.set(
+          child.rotation.x,
+          Math.sin(state.clock.elapsedTime * 0.3 + i * 0.2) * 0.1,
+          child.rotation.z
+        );
       });
     }
   });

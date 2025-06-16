@@ -95,6 +95,14 @@ export const create = mutation({
       color: v.string(),
       rotation: v.number(),
       customizations: v.optional(v.any()),
+      selectedModel: v.optional(v.object({
+        id: v.string(),
+        name: v.string(),
+        description: v.optional(v.string()),
+        type: v.string(), // 'model' or 'procedural'
+        modelType: v.optional(v.string()), // for 3D models
+        buildingType: v.optional(v.string()), // for procedural buildings
+      })),
     }),
     garden: v.optional(
       v.object({
@@ -127,6 +135,15 @@ export const create = mutation({
       enabled: v.boolean(),
       modelUrl: v.optional(v.string()),
       modelType: v.optional(v.string()),
+    })),
+    advertising: v.optional(v.object({
+      enabled: v.boolean(),
+      companyName: v.string(),
+      website: v.optional(v.string()),
+      logoUrl: v.optional(v.string()),
+      logoFileName: v.optional(v.string()),
+      description: v.optional(v.string()),
+      contactEmail: v.optional(v.string()),
     })),
   },
   handler: async (ctx, args) => {
@@ -195,6 +212,16 @@ export const create = mutation({
       paymentStatus,
       paymentId,
       customModel: customModel || undefined,
+      advertising: args.advertising ? {
+        enabled: args.advertising.enabled,
+        companyName: args.advertising.companyName,
+        website: args.advertising.website,
+        logoUrl: args.advertising.logoUrl,
+        logoFileName: args.advertising.logoFileName,
+        description: args.advertising.description,
+        contactEmail: args.advertising.contactEmail,
+        uploadedAt: timestamp,
+      } : undefined,
       createdAt: timestamp,
       updatedAt: timestamp,
     });

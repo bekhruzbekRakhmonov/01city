@@ -8,7 +8,7 @@ import * as THREE from 'three';
 interface SubBuildingProps {
   type: string;
   position: [number, number, number];
-  rotation: number;
+  rotation: [number, number, number];
   size: number;
   color: string;
   customizations?: any;
@@ -75,6 +75,8 @@ export function SubBuilding({ type, position, rotation, size, color, customizati
       buildingRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.3) * 0.02;
     }
   });
+
+  const renderSubBuildingContent = () => {
   
   // Sub-building types
   const subBuildingTypes = ['cafe', 'studio', 'gallery', 'gazebo', 'fountain', 'techLounge', 'bikeStation', 'innovationLab'];
@@ -108,7 +110,7 @@ export function SubBuilding({ type, position, rotation, size, color, customizati
   const dimensions = getBuildingDimensions();
   
   // Render different sub-building types
-  const renderSubBuilding = () => {
+
     switch (type) {
       case 'techLounge':
         return (
@@ -164,7 +166,7 @@ export function SubBuilding({ type, position, rotation, size, color, customizati
             </Box>
           </group>
         );
-        
+
       case 'bikeStation':
         return (
           <group>
@@ -546,22 +548,21 @@ export function SubBuilding({ type, position, rotation, size, color, customizati
         );
       
       default:
-        // Default simple sub-building
         return (
-          <Box args={[dimensions.width, dimensions.height, dimensions.depth]} castShadow>
-            <meshStandardMaterial color={color} />
+          <Box 
+            args={[dimensions.width, dimensions.height, dimensions.depth]} 
+            position={[0, dimensions.height / 2, 0]}
+            castShadow
+          >
+            <meshStandardMaterial {...textureProps} />
           </Box>
         );
     }
   };
-  
+
   return (
-    <group 
-      ref={buildingRef} 
-      position={[position[0], position[1] + dimensions.height / 2, position[2]]}
-      rotation={[0, rotation, 0]}
-    >
-      {renderSubBuilding()}
+    <group ref={buildingRef} position={position} rotation={rotation}>
+      {renderSubBuildingContent()}
     </group>
   );
 }

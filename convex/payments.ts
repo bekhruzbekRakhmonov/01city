@@ -1,4 +1,5 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 // Create payment intent for plot purchase
@@ -22,7 +23,7 @@ export const createPlotPaymentIntent = mutation({
       .first();
     
     const userFreeSquaresUsed = user?.freeSquaresUsed || 0;
-    const userFreeSquaresLimit = user?.freeSquaresLimit || 25;
+    const userFreeSquaresLimit = (user?.freeSquaresLimit || 25) + (user?.subscriptionTier === "basic" ? 50 : user?.subscriptionTier === "premium" ? 100 : 0);
     
     // Calculate pricing
     const totalSquares = args.plotSize.width * args.plotSize.depth;
@@ -31,7 +32,18 @@ export const createPlotPaymentIntent = mutation({
     const paidSquares = totalSquares - freeSquaresToUse;
     
     const plotCost = paidSquares * 100; // $1 per square
-    const customModelFee = args.hasCustomModel ? 2000 : 0; // $20 for custom model
+    
+    // Calculate custom model fee with subscription discounts
+    let customModelFee = 0;
+    if (args.hasCustomModel) {
+      if (user?.subscriptionTier === "premium") {
+        customModelFee = 0; // Free for premium
+      } else if (user?.subscriptionTier === "basic") {
+        customModelFee = 1000; // 50% off for basic ($10)
+      } else {
+        customModelFee = 2000; // Full price ($20)
+      }
+    }
     const totalCost = plotCost + customModelFee;
     
     if (totalCost === 0) {
@@ -187,6 +199,118 @@ export const getTransactionHistory = query({
       amountFormatted: `$${(transaction.amount / 100).toFixed(2)}`,
       createdAtFormatted: new Date(transaction.createdAt).toLocaleDateString(),
     }));
+  },
+});
+
+// Internal mutation to record transaction and update user (if applicable)
+export const _internalRecordTransaction = internalMutation({
+  args: {
+    userId: v.optional(v.string()),
+    amount: v.number(),
+    currency: v.string(),
+    type: v.union(v.literal('land'), v.literal('custom_model'), v.literal('plot')), // Added 'plot' here as well for consistency, though action validates
+    paymentProcessor: v.string(),
+    transactionId: v.string(),
+    status: v.string(),
+    metadata: v.any(),
+    paymentSuccessful: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const timestamp = Date.now();
+
+    await ctx.db.insert("transactions", {
+      userId: args.userId || "guest",
+      amount: args.amount,
+      currency: args.currency,
+      type: args.type,
+      paymentProcessor: args.paymentProcessor,
+      transactionId: args.transactionId,
+      status: args.status,
+      metadata: args.metadata,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    if (args.userId && args.paymentSuccessful) {
+      const user = await ctx.db.query("users").filter(q => q.eq(q.field("userId"), args.userId!)).first();
+      if (user) {
+        // Example: Add credits or update user status based on payment type
+        // await ctx.db.patch(user._id, { credits: (user.credits || 0) + args.amount });
+      }
+    }
+    return { transactionId: args.transactionId, status: args.status };
+  }
+});
+
+// Process a generic payment (Action)
+export const processPayment = action({
+  args: {
+    amount: v.number(),
+    description: v.string(),
+    // Ensure 'plot' is a valid type if it can be passed from client
+    type: v.union(v.literal('land'), v.literal('custom_model'), v.literal('plot')),
+    paymentMethod: v.union(v.literal('card'), v.literal('crypto')),
+    paymentDetails: v.object({
+      cardNumber: v.optional(v.string()),
+      cardHolder: v.optional(v.string()),
+      walletAddress: v.optional(v.string()),
+    }),
+    userId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const timestamp = Date.now();
+    // Simulate payment processing delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    let paymentSuccessful = true;
+    let errorMessage = null;
+
+    if (args.paymentMethod === 'card') {
+      if (!args.paymentDetails.cardNumber || args.paymentDetails.cardNumber.length < 4) {
+        paymentSuccessful = false;
+        errorMessage = 'Invalid card details provided.';
+      } else if (args.paymentDetails.cardNumber.endsWith('0000')) {
+        paymentSuccessful = false;
+        errorMessage = 'Card declined by issuer.';
+      }
+    } else if (args.paymentMethod === 'crypto') {
+      if (!args.paymentDetails.walletAddress || args.paymentDetails.walletAddress.length < 10) {
+        paymentSuccessful = false;
+        errorMessage = 'Invalid crypto wallet address.';
+      }
+    }
+
+    const paymentId = `pay_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Record the transaction attempt by calling the internal mutation
+    await ctx.runMutation(internal.payments._internalRecordTransaction, {
+      userId: args.userId,
+      amount: args.amount,
+      currency: "USD",
+      type: args.type,
+      paymentProcessor: args.paymentMethod === 'card' ? "mock_card_processor" : "mock_crypto_processor",
+      transactionId: paymentId,
+      status: paymentSuccessful ? "completed" : "failed",
+      metadata: {
+        description: args.description,
+        paymentDetails: args.paymentDetails, // Be careful about storing sensitive info
+      },
+      paymentSuccessful: paymentSuccessful,
+    });
+
+    if (!paymentSuccessful) {
+      return {
+        success: false,
+        error: errorMessage || "Payment processing failed.",
+        paymentId: paymentId,
+      };
+    }
+
+    return {
+      success: true,
+      paymentId: paymentId,
+      message: "Payment processed successfully.",
+    };
   },
 });
 

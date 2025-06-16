@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import Building from './BuildingComponent';
+import { Building } from './Building';
 import { Garden } from './Garden';
 import { SubBuilding } from './SubBuilding';
 import { PlotInfo } from '../ui/PlotInfo';
@@ -43,6 +43,7 @@ export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
     }
   };
   
+  console.log(plot);
   return (
     <group 
       position={[plot.position.x, 0, plot.position.z]}
@@ -66,9 +67,11 @@ export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
         position={[0, 0, 0]}
         height={plot.mainBuilding.height}
         color={plot.mainBuilding.color}
-        rotation={plot.mainBuilding.rotation}
+        rotation={plot.mainBuilding.rotation || 0}
         customizations={plot.mainBuilding.customizations}
-        customModel={plot.customModel}
+        selectedModel={plot.mainBuilding.customizations.selectedModel}
+        plotId={plot._id}
+        advertising={plot.advertising}
       />
       
       {/* Garden if enabled */}
@@ -86,7 +89,7 @@ export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
           key={index}
           type={subBuilding.type}
           position={[subBuilding.position.x, 0, subBuilding.position.z]}
-          rotation={subBuilding.rotation}
+          rotation={[0, subBuilding.rotation || 0, 0]}
           size={subBuilding.size}
           color={subBuilding.color}
           customizations={subBuilding.customizations}

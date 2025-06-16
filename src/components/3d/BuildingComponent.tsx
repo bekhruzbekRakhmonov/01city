@@ -67,6 +67,8 @@ function Building({
   const buildingColor = color ?? preset.baseColor;
   const scale = customScale ?? preset.scale;
 
+  const { rotation: _rotation, ...otherCustomizations } = customizations;
+
   // Add subtle animation for hover effect
   useFrame((state) => {
     if (!buildingRef.current) return;
@@ -93,7 +95,7 @@ function Building({
               <meshStandardMaterial color={buildingColor} />
             </Box>
           }
-          {...customizations}
+          {...otherCustomizations}
         />
       </group>
     );
@@ -108,7 +110,7 @@ function Building({
       scale={scale}
       color={buildingColor}
       selected={selected}
-      {...customizations}
+      {...otherCustomizations}
     />
   );
 }

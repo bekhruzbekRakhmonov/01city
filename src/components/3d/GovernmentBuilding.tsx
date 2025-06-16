@@ -26,6 +26,7 @@ interface GovernmentBuildingProps {
   columnColor?: THREE.ColorRepresentation;
   windowColor?: THREE.ColorRepresentation;
   doorColor?: THREE.ColorRepresentation;
+  onBuildingClick?: () => void;
 }
 
 export function GovernmentBuilding({
@@ -38,6 +39,7 @@ export function GovernmentBuilding({
   columnColor = '#ffffff',
   windowColor = '#2c3e50', // Dark blue-gray for glass
   doorColor = '#6a4a3a', // Dark wood color
+  onBuildingClick,
 }: GovernmentBuildingProps) {
   const group = useRef<THREE.Group>(null);
 
@@ -45,8 +47,21 @@ export function GovernmentBuilding({
   const pedimentGeometry = createTriangularPrism(34, 5, 1.9);
   const mainRoofGeometry = createTriangularPrism(40, 6, 26);
 
+  const handleClick = (event: any) => {
+    event.stopPropagation();
+    if (onBuildingClick) {
+      onBuildingClick();
+    }
+  };
+
   return (
-    <group ref={group} position={position} rotation={rotation} scale={[scale, scale, scale]}>
+    <group 
+      ref={group} 
+      position={position} 
+      rotation={rotation} 
+      scale={[scale, scale, scale]}
+      onClick={handleClick}
+    >
       {/* ================================================================== */}
       {/* FOUNDATION & STEPS */}
       {/* ================================================================== */}

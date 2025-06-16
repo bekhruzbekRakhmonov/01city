@@ -1,78 +1,61 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Plot } from './Plot';
-import { PlotCreator } from '../ui/PlotCreator';
 import LandSelector from '../ui/LandSelector';
 import { Text } from '@react-three/drei';
 import { Ground } from './Ground';
 import { GovernmentBuilding } from './GovernmentBuilding';
 import { useUser } from '@clerk/nextjs';
-import * as THREE from 'three';
 
-export function City() {
+interface CityProps {
+  onPlotSelect: (position: { x: number; z: number }) => void;
+  onGovernmentBuildingClick?: () => void;
+  showLandSelector?: boolean;
+  onLandSelectorClose?: () => void;
+}
+
+export function City({ onPlotSelect, onGovernmentBuildingClick, showLandSelector = false, onLandSelectorClose }: CityProps) {
   // Fetch all plots from Convex
   const plots = useQuery(api.plots.getAll) || [];
-  const [isCreatingPlot, setIsCreatingPlot] = useState(false);
-  const [selectedPosition, setSelectedPosition] = useState<{ x: number; z: number } | null>(null);
   const [isChoosingPlot, setIsChoosingPlot] = useState(false);
-  const [showLandSelector, setShowLandSelector] = useState(false);
   const { isSignedIn } = useUser();
 
-  // Generate available plot positions
-  const availablePositions = Array.from({ length: 20 }, (_, i) => ({
-    x: (i % 5) * 15 - 30,
-    z: Math.floor(i / 5) * 15 - 30
-  })).filter(pos => 
-    !plots.some(plot => 
-      plot.position.x === pos.x && plot.position.z === pos.z
-    )
-  );
-
   const handlePlotSelect = (position: { x: number; z: number }) => {
-    setSelectedPosition(position);
-    setIsCreatingPlot(true);
+    onPlotSelect(position);
     setIsChoosingPlot(false);
-    setShowLandSelector(false);
+    if (onLandSelectorClose) {
+      onLandSelectorClose();
+    }
   };
 
   const handleLandSelectorCancel = () => {
-    setShowLandSelector(false);
+    if (onLandSelectorClose) {
+      onLandSelectorClose();
+    }
     setIsChoosingPlot(false);
-  };
-
-  const handlePlotCreated = () => {
-    setIsCreatingPlot(false);
-    setSelectedPosition(null);
-    setShowLandSelector(false);
   };
 
   return (
     <group>
       {/* Ground */}
       <Ground />
-      <GovernmentBuilding position={[0, 0, 0]} scale={1} />
+      <GovernmentBuilding 
+        position={[0, 0, 0]} 
+        scale={1} 
+        onBuildingClick={onGovernmentBuildingClick}
+      />
       
       {/* Existing Plots */}
       {plots.map((plot) => (
         <Plot key={plot._id} plot={plot} />
       ))}
 
-
-
-      {/* Plot Creator Modal */}
-      {isCreatingPlot && selectedPosition && (
-        <PlotCreator
-          initialPosition={selectedPosition}
-          onComplete={handlePlotCreated}
-        />
-      )}
-
-      {/* Choose Plot Button */}
-      {!isCreatingPlot && !isChoosingPlot && !showLandSelector && (
-        <group position={[0, 10, 0]} onClick={() => setShowLandSelector(true)}>
+      {/* Choose Plot Button - Only show to signed-in users when land selector is not controlled externally */}
+      {!isChoosingPlot && !showLandSelector && isSignedIn && !onLandSelectorClose && (
+        <group position={[0, 10, 0]} onClick={() => setIsChoosingPlot(true)}>
           <mesh>
             <boxGeometry args={[8, 2, 1]} />
             <meshStandardMaterial color="#3b82f6" />
@@ -85,6 +68,25 @@ export function City() {
             anchorY="middle"
           >
             Choose Plot
+          </Text>
+        </group>
+      )}
+
+      {/* Sign In Prompt for non-authenticated users */}
+      {!isChoosingPlot && !showLandSelector && !isSignedIn && (
+        <group position={[0, 10, 0]}>
+          <mesh>
+            <boxGeometry args={[12, 2, 1]} />
+            <meshStandardMaterial color="#6b7280" />
+          </mesh>
+          <Text
+            position={[0, 0, 0.6]}
+            fontSize={0.4}
+            color="white"
+            anchorX="center"
+            anchorY="middle"
+          >
+            Sign in to build your plot
           </Text>
         </group>
       )}

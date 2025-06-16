@@ -2,11 +2,23 @@
 
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Sky, Environment, Stars, Cloud, Clouds, useHelper } from '@react-three/drei';
-import { Suspense, useRef } from 'react';
+import { Suspense, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { City } from './City';
+import { GovernmentHelpModal } from '../ui/GovernmentHelpModal';
 
-export function Scene() {
+interface SceneProps {
+  onPlotSelect: (position: { x: number; z: number }) => void;
+}
+
+export function Scene({ onPlotSelect }: SceneProps) {
+  const [isGovernmentModalOpen, setIsGovernmentModalOpen] = useState(false);
+  const [showLandSelector, setShowLandSelector] = useState(false);
+  
+  const handleChoosePlot = () => {
+    setIsGovernmentModalOpen(false);
+    setShowLandSelector(true);
+  };
   return (
     <div className="w-full h-full absolute inset-0">
       <Canvas
@@ -70,7 +82,12 @@ export function Scene() {
           <Stars radius={300} depth={50} count={500} factor={4} fade speed={1} />
           
           {/* The city itself */}
-          <City />
+          <City 
+            onPlotSelect={onPlotSelect} 
+            onGovernmentBuildingClick={() => setIsGovernmentModalOpen(true)}
+            showLandSelector={showLandSelector}
+            onLandSelectorClose={() => setShowLandSelector(false)}
+          />
           
           {/* Enhanced camera controls with zoom-to-cursor */}
           <OrbitControls 
@@ -94,6 +111,12 @@ export function Scene() {
 
         </Suspense>
       </Canvas>
+      
+      <GovernmentHelpModal 
+        isOpen={isGovernmentModalOpen} 
+        onClose={() => setIsGovernmentModalOpen(false)}
+        onChoosePlot={handleChoosePlot}
+      />
     </div>
   );
 }

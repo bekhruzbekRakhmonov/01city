@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { useRef, useState, useMemo, useEffect } from 'react';
-import { Box, RoundedBox, Cylinder, useTexture, Group, useGLTF, Text } from '@react-three/drei';
+import { Box, RoundedBox, Cylinder, Text, Sphere, Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
+import { BuildingModel } from './BuildingModel';
+import { PlotInfo } from '../ui/PlotInfo';
 
 // Define types for building props
 interface BuildingProps {
@@ -17,8 +19,25 @@ interface BuildingProps {
     windowPattern?: string;
     signText?: string;
   };
+  selectedModel?: {
+    id: string;
+    name: string;
+    description?: string;
+    type: string; // 'model' or 'procedural'
+    modelType?: string; // for 3D models
+    buildingType?: string; // for procedural buildings
+  };
   plotId?: string;
   onInteract?: (plotId: string) => void;
+  advertising?: {
+    enabled: boolean;
+    companyName: string;
+    website?: string;
+    logoUrl?: string;
+    logoFileName?: string;
+    description?: string;
+    contactEmail?: string;
+  };
 }
 
 export function Building({ 
@@ -26,14 +45,18 @@ export function Building({
   position, 
   height, 
   color, 
-  rotation, 
+  rotation = 0,
   customizations,
+  selectedModel,
   plotId,
-  onInteract
+  onInteract,
+  advertising
 }: BuildingProps) {
-  const buildingRef = useRef<THREE.Group>(null);
+  console.log("selectedModel", selectedModel)
+  const buildingRef = useRef<THREE.Object3D>(null);
   const [hovered, setHovered] = useState(false);
   const [clicked, setClicked] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const { camera } = useThree();
   
   // Enhanced texture generation with more detail
@@ -210,6 +233,9 @@ export function Building({
     };
   }, [color, type, height, customizations]);
   
+
+
+  
   // Hover and click effects
   useEffect(() => {
     document.body.style.cursor = hovered ? 'pointer' : 'auto';
@@ -290,69 +316,197 @@ export function Building({
   
   const dimensions = getBuildingDimensions();
   
+  // Advertising banner rendering function
+  const renderAdvertisingBanner = () => {
+    if (!advertising?.enabled || !advertising.companyName) {
+      return null;
+    }
+
+    const bannerHeight = Math.min(height * 0.15, 2); // Banner height based on building height
+    const bannerWidth = dimensions.width * 0.8; // Banner width based on building width
+    const bannerDepth = 0.1;
+    const bannerStyle = advertising.bannerStyle || 'classic';
+    const bannerPosition = advertising.bannerPosition || 'front';
+    const bannerColor = advertising.bannerColor || '#ffffff';
+    const textColor = advertising.textColor || '#333333';
+    const animationStyle = advertising.animationStyle || 'none';
+
+    // Position calculations based on banner position
+    const getPosition = () => {
+      switch (bannerPosition) {
+        case 'front':
+          return [0, height * 0.3, dimensions.depth / 2 + bannerDepth];
+        case 'side':
+          return [dimensions.width / 2 + bannerDepth, height * 0.3, 0];
+        case 'top':
+          return [0, height + 0.1, 0];
+        case 'corner':
+          return [dimensions.width / 2 * 0.7, height * 0.3, dimensions.depth / 2 * 0.7];
+        case 'wrap':
+          return [0, height * 0.3, 0];
+        default:
+          return [0, height * 0.3, dimensions.depth / 2 + bannerDepth];
+      }
+    };
+
+    const getRotation = () => {
+      switch (bannerPosition) {
+        case 'side':
+          return [0, Math.PI / 2, 0];
+        case 'top':
+          return [-Math.PI / 2, 0, 0];
+        case 'corner':
+          return [0, Math.PI / 4, 0];
+        default:
+          return [0, 0, 0];
+      }
+    };
+
+    const getScale = () => {
+      switch (bannerStyle) {
+        case 'billboard':
+          return [1.5, 1.5, 1];
+        case 'minimal':
+          return [0.8, 0.8, 1];
+        default:
+          return [1, 1, 1];
+      }
+    };
+
+    // Animation effects
+    const getAnimationProps = () => {
+      switch (animationStyle) {
+        case 'glow':
+          return {
+            emissive: textColor,
+            emissiveIntensity: 0.3
+          };
+        case 'pulse':
+          return {
+            opacity: 0.8 + 0.2 * Math.sin(Date.now() * 0.005)
+          };
+        default:
+          return {};
+      }
+    };
+
+    const renderSingleBanner = (pos: [number, number, number], rot: [number, number, number]) => (
+      <group position={pos} rotation={rot} scale={getScale()}>
+        {/* Banner background */}
+        <Box args={[bannerWidth, bannerHeight, bannerDepth]} castShadow>
+          <meshStandardMaterial 
+            color={bannerColor}
+            roughness={0.3}
+            metalness={0.1}
+            transparent
+            {...getAnimationProps()}
+          />
+        </Box>
+        
+        {/* Company logo if available */}
+        {advertising.logoUrl && (
+          <mesh 
+            position={[-bannerWidth * 0.3, 0, bannerDepth / 2 + 0.01]}
+          >
+            <planeGeometry args={[bannerHeight * 0.8, bannerHeight * 0.8]} />
+            <meshStandardMaterial 
+              map={useMemo(() => {
+                const loader = new THREE.TextureLoader();
+                const texture = loader.load(advertising.logoUrl!);
+                texture.flipY = false;
+                return texture;
+              }, [advertising.logoUrl])}
+              transparent
+              alphaTest={0.1}
+            />
+          </mesh>
+        )}
+        
+        {/* Company name text */}
+        <Text
+          position={[bannerWidth * 0.1, 0, bannerDepth / 2 + 0.01]}
+          fontSize={bannerStyle === 'billboard' ? bannerHeight * 0.3 : bannerStyle === 'minimal' ? bannerHeight * 0.2 : bannerHeight * 0.25}
+          color={textColor}
+          anchorX="center"
+          anchorY="middle"
+          maxWidth={bannerWidth * 0.6}
+          // font="/fonts/Inter-Bold.woff"
+        >
+          {advertising.companyName}
+        </Text>
+        
+        {/* Banner frame (for certain styles) */}
+        {bannerStyle !== 'minimal' && (
+          <Box args={[bannerWidth + 0.1, bannerHeight + 0.1, bannerDepth / 2]} position={[0, 0, -bannerDepth / 4]}>
+            <meshStandardMaterial 
+              color={bannerStyle === 'neon' ? '#00ffff' : '#333333'}
+              roughness={0.7}
+              metalness={0.3}
+              transparent
+              opacity={bannerStyle === 'neon' ? 0.6 : 0.8}
+            />
+          </Box>
+        )}
+        
+        {/* Lighting effects */}
+        {(bannerStyle === 'neon' || animationStyle === 'glow') && (
+          <pointLight 
+            position={[0, 0, bannerDepth + 0.5]}
+            intensity={bannerStyle === 'neon' ? 0.8 : 0.3}
+            distance={bannerWidth}
+            color={bannerStyle === 'neon' ? '#00ffff' : textColor}
+          />
+        )}
+      </group>
+    );
+
+    // Render based on position type
+    if (bannerPosition === 'wrap') {
+      return (
+        <>
+          {renderSingleBanner([0, height * 0.3, dimensions.depth / 2 + bannerDepth], [0, 0, 0])}
+          {renderSingleBanner([dimensions.width / 2 + bannerDepth, height * 0.3, 0], [0, Math.PI / 2, 0])}
+          {renderSingleBanner([0, height * 0.3, -dimensions.depth / 2 - bannerDepth], [0, Math.PI, 0])}
+          {renderSingleBanner([-dimensions.width / 2 - bannerDepth, height * 0.3, 0], [0, -Math.PI / 2, 0])}
+        </>
+      );
+    }
+
+    return renderSingleBanner(getPosition(), getRotation());
+  };
+  
   // Handle interaction
   const handleClick = (e) => {
     e.stopPropagation();
     setClicked(!clicked);
+    setShowInfoModal(true);
     
     if (onInteract && plotId) {
       onInteract(plotId);
-    }
-    
-    // Camera animation to focus on building when clicked
-    if (!clicked && camera) {
-      const targetPosition = new THREE.Vector3(
-        position[0],
-        position[1] + height / 2,
-        position[2]
-      );
-      
-      // Animate camera to look at the building
-      const startPosition = camera.position.clone();
-      const startQuaternion = camera.quaternion.clone();
-      
-      // Calculate target camera position
-      const distance = height * 2;
-      const offset = new THREE.Vector3(distance, distance * 0.7, distance);
-      const targetCameraPosition = targetPosition.clone().add(offset);
-      
-      // Look at target
-      const lookAtMatrix = new THREE.Matrix4();
-      lookAtMatrix.lookAt(targetCameraPosition, targetPosition, camera.up);
-      const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(lookAtMatrix);
-      
-      // Animation duration
-      const duration = 1000; // ms
-      const startTime = Date.now();
-      
-      const animateCamera = () => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        
-        // Ease in-out function
-        const easeProgress = progress < 0.5
-          ? 2 * progress * progress
-          : -1 + (4 - 2 * progress) * progress;
-        
-        // Interpolate position and rotation
-        camera.position.lerpVectors(startPosition, targetCameraPosition, easeProgress);
-        camera.quaternion.slerpQuaternions(startQuaternion, targetQuaternion, easeProgress);
-        
-        if (progress < 1) {
-          requestAnimationFrame(animateCamera);
-        }
-      };
-      
-      animateCamera();
     }
   };
   
   // Render different building types with enhanced details
   const renderBuilding = () => {
+    // If a 3D model is selected, render it instead of procedural building
+    if (selectedModel && selectedModel.type === 'model' && selectedModel.modelType) {
+      return (
+        <group ref={buildingRef} rotation={[0, rotation, 0]} onClick={handleClick}>
+          <BuildingModel
+            modelType={selectedModel.modelType as 'low_poly' | 'sugarcube'}
+            scale={height * 2} // Scale based on height
+            position={[0, 0, 0]}
+            color={color}
+            selected={hovered || clicked}
+          />
+        </group>
+      );
+    }
+    
     switch (type) {
       case 'skyscraper':
         return (
-          <Group ref={buildingRef}>
+          <group ref={buildingRef} rotation={[0, rotation, 0]}>
             {/* Main building structure with improved materials */}
             <RoundedBox 
               args={[dimensions.width, dimensions.height, dimensions.depth]} 
@@ -362,7 +516,9 @@ export function Building({
               receiveShadow
             >
               <meshPhysicalMaterial 
-                {...textureProps}
+                map={textureProps.map}
+                normalMap={textureProps.normalMap}
+                normalScale={textureProps.normalScale}
                 metalness={0.7} 
                 roughness={0.2} 
                 envMapIntensity={1.5}
@@ -519,12 +675,12 @@ export function Building({
                 {customizations?.signText || `${Math.floor(Math.random() * 999) + 1}`}
               </Text>
             </group>
-          </Group>
+          </group>
         );
       
       case 'house':
         return (
-          <Group ref={buildingRef}>
+          <group ref={buildingRef} rotation={[0, rotation, 0]}>
             {/* Main house body with enhanced texture */}
             <Box 
               args={[dimensions.width, dimensions.height * 0.7, dimensions.depth]} 
@@ -532,7 +688,9 @@ export function Building({
               receiveShadow
             >
               <meshStandardMaterial 
-                {...textureProps}
+                map={textureProps.map}
+                normalMap={textureProps.normalMap}
+                normalScale={textureProps.normalScale}
                 roughness={0.8} 
                 metalness={0.1}
                 envMapIntensity={0.8}
@@ -550,9 +708,7 @@ export function Building({
                 color={customizations?.roofColor || "#8B4513"} 
                 roughness={0.9}
                 normalScale={new THREE.Vector2(0.5, 0.5)}
-              >
-                {/* Create procedural shingle pattern */}
-                {(() => {
+                map={useMemo(() => {
                   const canvas = document.createElement('canvas');
                   canvas.width = 512;
                   canvas.height = 512;
@@ -584,8 +740,8 @@ export function Building({
                   texture.repeat.set(2, 2);
                   
                   return texture;
-                })()}
-              </meshStandardMaterial>
+                }, [customizations?.roofColor])}
+              />
             </mesh>
             
             {/* Enhanced windows with frames and glass effect */}
@@ -767,12 +923,12 @@ export function Building({
                 })}
               </group>
             )}
-          </Group>
+          </group>
         );
       
       case 'shop':
         return (
-          <Group ref={buildingRef}>
+          <group ref={buildingRef} rotation={[0, rotation, 0]}>
             {/* Main shop structure */}
             <Box 
               args={[dimensions.width, dimensions.height, dimensions.depth]} 
@@ -780,7 +936,9 @@ export function Building({
               receiveShadow
             >
               <meshStandardMaterial 
-                {...textureProps}
+                map={textureProps.map}
+                normalMap={textureProps.normalMap}
+                normalScale={textureProps.normalScale}
                 roughness={0.6} 
                 metalness={0.2}
               />
@@ -837,7 +995,7 @@ export function Building({
                 color="#FFFFFF"
                 anchorX="center"
                 anchorY="middle"
-                font="/fonts/Inter-Bold.woff"
+                // font="/fonts/Inter-Bold.woff"
                 maxWidth={dimensions.width * 0.6}
               >
                 {customizations?.signText || "SHOP"}
@@ -903,12 +1061,12 @@ export function Building({
                 </Cylinder>
               ))}
             </group>
-          </Group>
+          </group>
         );
       
       case 'tower':
         return (
-          <Group ref={buildingRef}>
+          <group ref={buildingRef} rotation={[0, rotation, 0]}>
             {/* Main tower structure with enhanced materials */}
             <Cylinder 
               args={[dimensions.width / 2, dimensions.width / 2 * 1.2, dimensions.height, 16]} 
@@ -916,7 +1074,9 @@ export function Building({
               receiveShadow
             >
               <meshStandardMaterial 
-                {...textureProps}
+                map={textureProps.map}
+                normalMap={textureProps.normalMap}
+                normalScale={textureProps.normalScale}
                 roughness={0.5} 
                 metalness={0.3}
                 envMapIntensity={1.2}
@@ -1061,12 +1221,12 @@ export function Building({
                 </Cylinder>
               ))}
             </group>
-          </Group>
+          </group>
         );
       
       default:
         return (
-          <Group ref={buildingRef}>
+          <group ref={buildingRef} rotation={[0, rotation, 0]}>
             <Box 
               args={[dimensions.width, dimensions.height, dimensions.depth]} 
               castShadow
@@ -1078,18 +1238,35 @@ export function Building({
                 metalness={0.2}
               />
             </Box>
-          </Group>
+          </group>
         );
     }
   };
   
   return (
-    <group 
-      position={[position[0], position[1] + height / 2, position[2]]}
-      rotation={[0, rotation, 0]}
-    >
-      {renderBuilding()}
-    </group>
+    <>
+      <group 
+        position={[position[0], position[1] + height / 2, position[2]]}
+        rotation={[0, rotation, 0]}
+        onClick={handleClick}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
+      >
+        {renderBuilding()}
+        {renderAdvertisingBanner()}
+      </group>
+      
+      <Html>
+        {showInfoModal && (
+          <PlotInfo
+            username={advertising?.companyName || 'Building Owner'}
+            description={advertising?.description || `${type.charAt(0).toUpperCase() + type.slice(1)} building with height of ${height}m`}
+            creatorInfo={advertising?.contactEmail ? `Contact: ${advertising.contactEmail}` : undefined}
+            onClose={() => setShowInfoModal(false)}
+          />
+        )}
+      </Html>
+    </>
   );
 }
 

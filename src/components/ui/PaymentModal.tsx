@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { useMutation } from 'convex/react';
+import React, { useState } from 'react';
+import { useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { Text } from '@react-three/drei';
+// Removed: import { Text } from '@react-three/drei';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -10,6 +10,7 @@ interface PaymentModalProps {
   amount: number;
   description: string;
   type: 'land' | 'custom_model';
+  userId?: string;
 }
 
 export function PaymentModal({ 
@@ -18,7 +19,8 @@ export function PaymentModal({
   onSuccess, 
   amount, 
   description, 
-  type 
+  type,
+  userId 
 }: PaymentModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'crypto'>('card');
@@ -31,7 +33,7 @@ export function PaymentModal({
   const [cryptoWallet, setCryptoWallet] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  const processPayment = useMutation(api.payments.processPayment);
+  const processPayment = useAction(api.payments.processPayment);
   
   if (!isOpen) return null;
   
@@ -65,7 +67,8 @@ export function PaymentModal({
           cardHolder: cardDetails.name
         } : {
           walletAddress: cryptoWallet
-        }
+        },
+        userId: userId
       });
       
       if (paymentResult.success) {
@@ -84,298 +87,173 @@ export function PaymentModal({
   const handleCardInputChange = (field: keyof typeof cardDetails, value: string) => {
     setCardDetails(prev => ({ ...prev, [field]: value }));
   };
+
+  // Basic inline styles for demonstration. Consider using CSS modules or a styling library.
+  const modalOverlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000, // Ensure it's on top
+  };
+
+  const modalContentStyle: React.CSSProperties = {
+    backgroundColor: '#1f2937', // Equivalent to meshStandardMaterial color="#1f2937"
+    padding: '20px',
+    borderRadius: '8px',
+    color: 'white',
+    width: '400px', // Approximate width
+    textAlign: 'center',
+  };
+
+  const titleStyle: React.CSSProperties = {
+    fontSize: '1.5em', // Equivalent to fontSize={0.6}
+    marginBottom: '10px',
+  };
+
+  const descriptionStyle: React.CSSProperties = {
+    fontSize: '0.9em', // Equivalent to fontSize={0.3}
+    color: '#9ca3af',
+    marginBottom: '10px',
+  };
+
+  const amountStyle: React.CSSProperties = {
+    fontSize: '1.1em', // Equivalent to fontSize={0.4}
+    color: '#22c55e',
+    marginBottom: '15px',
+  };
+
+  const paymentMethodContainerStyle: React.CSSProperties = {
+    marginBottom: '20px',
+  };
+
+  const paymentMethodButtonStyle: React.CSSProperties = {
+    padding: '10px 15px',
+    margin: '0 5px',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: 'calc(100% - 22px)', // Account for padding and border
+    padding: '10px',
+    marginBottom: '10px',
+    borderRadius: '4px',
+    border: '1px solid #374151',
+    backgroundColor: '#2d3748',
+    color: 'white',
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '1em',
+  };
+
+  const errorStyle: React.CSSProperties = {
+    color: 'red',
+    marginTop: '10px',
+  };
   
   return (
-    <group position={[0, 5, 0]}>
-      {/* Background overlay */}
-      <mesh position={[0, 0, -1]}>
-        <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#000000" opacity={0.7} transparent />
-      </mesh>
-      
-      {/* Modal container */}
-      <group position={[0, 0, 0]}>
-        <mesh position={[0, 0, -0.1]}>
-          <planeGeometry args={[16, 12]} />
-          <meshStandardMaterial color="#1f2937" />
-        </mesh>
-        
-        {/* Title */}
-        <Text
-          position={[0, 5, 0]}
-          fontSize={0.6}
-          color="white"
-          anchorX="center"
-          anchorY="middle"
-        >
-          Complete Payment
-        </Text>
-        
-        {/* Description */}
-        <Text
-          position={[0, 4, 0]}
-          fontSize={0.3}
-          color="#9ca3af"
-          anchorX="center"
-          anchorY="middle"
-        >
-          {description}
-        </Text>
-        
-        {/* Amount */}
-        <Text
-          position={[0, 3.2, 0]}
-          fontSize={0.4}
-          color="#22c55e"
-          anchorX="center"
-          anchorY="middle"
-        >
-          ${amount.toFixed(2)}
-        </Text>
-        
-        {/* Payment method selection */}
-        <group position={[0, 2.2, 0]}>
-          <Text
-            position={[0, 0.3, 0]}
-            fontSize={0.3}
-            color="white"
-            anchorX="center"
-            anchorY="middle"
-          >
-            Payment Method
-          </Text>
-          
-          {/* Card option */}
-          <group 
-            position={[-2, -0.3, 0]} 
+    <div style={modalOverlayStyle}>
+      <div style={modalContentStyle}>
+        <h2 style={titleStyle}>Complete Payment</h2>
+        <p style={descriptionStyle}>{description}</p>
+        <p style={amountStyle}>${amount.toFixed(2)}</p>
+
+        <div style={paymentMethodContainerStyle}>
+          <p style={{ fontSize: '0.9em', color: 'white', marginBottom: '10px' }}>Payment Method</p>
+          <button 
+            style={{
+              ...paymentMethodButtonStyle,
+              backgroundColor: paymentMethod === 'card' ? '#3b82f6' : '#374151',
+            }}
             onClick={() => setPaymentMethod('card')}
           >
-            <mesh>
-              <planeGeometry args={[3, 0.8]} />
-              <meshStandardMaterial 
-                color={paymentMethod === 'card' ? '#3b82f6' : '#374151'} 
-              />
-            </mesh>
-            <Text
-              position={[0, 0, 0.1]}
-              fontSize={0.25}
-              color="white"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Credit Card
-            </Text>
-          </group>
-          
-          {/* Crypto option */}
-          <group 
-            position={[2, -0.3, 0]} 
+            Credit Card
+          </button>
+          <button 
+            style={{
+              ...paymentMethodButtonStyle,
+              backgroundColor: paymentMethod === 'crypto' ? '#3b82f6' : '#374151',
+            }}
             onClick={() => setPaymentMethod('crypto')}
           >
-            <mesh>
-              <planeGeometry args={[3, 0.8]} />
-              <meshStandardMaterial 
-                color={paymentMethod === 'crypto' ? '#3b82f6' : '#374151'} 
-              />
-            </mesh>
-            <Text
-              position={[0, 0, 0.1]}
-              fontSize={0.25}
-              color="white"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Cryptocurrency
-            </Text>
-          </group>
-        </group>
-        
-        {/* Payment form */}
+            Cryptocurrency
+          </button>
+        </div>
+
         {paymentMethod === 'card' ? (
-          <group position={[0, 0.5, 0]}>
-            <Text
-              position={[0, 0.8, 0]}
-              fontSize={0.25}
-              color="#9ca3af"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Card Number: {cardDetails.number || 'Enter card number'}
-            </Text>
-            <Text
-              position={[-2, 0.3, 0]}
-              fontSize={0.25}
-              color="#9ca3af"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Expiry: {cardDetails.expiry || 'MM/YY'}
-            </Text>
-            <Text
-              position={[2, 0.3, 0]}
-              fontSize={0.25}
-              color="#9ca3af"
-              anchorX="center"
-              anchorY="middle"
-            >
-              CVV: {cardDetails.cvv || '***'}
-            </Text>
-            <Text
-              position={[0, -0.2, 0]}
-              fontSize={0.25}
-              color="#9ca3af"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Name: {cardDetails.name || 'Cardholder name'}
-            </Text>
-            
-            {/* Simulated form note */}
-            <Text
-              position={[0, -0.8, 0]}
-              fontSize={0.2}
-              color="#fbbf24"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Demo: Use any test card details
-            </Text>
-          </group>
+          <div>
+            <p style={{ fontSize: '0.8em', color: '#9ca3af', marginBottom: '5px' }}>Card Number</p>
+            <input 
+              type="text" 
+              placeholder="Card Number" 
+              value={cardDetails.number} 
+              onChange={(e) => handleCardInputChange('number', e.target.value)} 
+              style={inputStyle}
+            />
+            <input 
+              type="text" 
+              placeholder="MM/YY" 
+              value={cardDetails.expiry} 
+              onChange={(e) => handleCardInputChange('expiry', e.target.value)} 
+              style={{...inputStyle, width: 'calc(50% - 27px)', marginRight: '10px'}}
+            />
+            <input 
+              type="text" 
+              placeholder="CVV" 
+              value={cardDetails.cvv} 
+              onChange={(e) => handleCardInputChange('cvv', e.target.value)} 
+              style={{...inputStyle, width: 'calc(50% - 27px)'}}
+            />
+            <input 
+              type="text" 
+              placeholder="Cardholder Name" 
+              value={cardDetails.name} 
+              onChange={(e) => handleCardInputChange('name', e.target.value)} 
+              style={inputStyle}
+            />
+          </div>
         ) : (
-          <group position={[0, 0.5, 0]}>
-            <Text
-              position={[0, 0.3, 0]}
-              fontSize={0.25}
-              color="#9ca3af"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Wallet Address:
-            </Text>
-            <Text
-              position={[0, -0.1, 0]}
-              fontSize={0.25}
-              color="#9ca3af"
-              anchorX="center"
-              anchorY="middle"
-            >
-              {cryptoWallet || 'Enter wallet address'}
-            </Text>
-            
-            {/* Simulated form note */}
-            <Text
-              position={[0, -0.6, 0]}
-              fontSize={0.2}
-              color="#fbbf24"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Demo: Use any test wallet address
-            </Text>
-          </group>
+          <div>
+            <p style={{ fontSize: '0.8em', color: '#9ca3af', marginBottom: '5px' }}>Crypto Wallet Address</p>
+            <input 
+              type="text" 
+              placeholder="Wallet Address" 
+              value={cryptoWallet} 
+              onChange={(e) => setCryptoWallet(e.target.value)} 
+              style={inputStyle}
+            />
+          </div>
         )}
-        
-        {/* Error message */}
-        {error && (
-          <Text
-            position={[0, -1.5, 0]}
-            fontSize={0.25}
-            color="#ef4444"
-            anchorX="center"
-            anchorY="middle"
-          >
-            {error}
-          </Text>
-        )}
-        
-        {/* Action buttons */}
-        <group position={[0, -2.5, 0]}>
-          {/* Pay button */}
-          <group 
-            position={[-2, 0, 0]} 
-            onClick={!isProcessing ? handlePayment : undefined}
-          >
-            <mesh>
-              <planeGeometry args={[3, 1]} />
-              <meshStandardMaterial 
-                color={isProcessing ? '#6b7280' : '#22c55e'} 
-              />
-            </mesh>
-            <Text
-              position={[0, 0, 0.1]}
-              fontSize={0.3}
-              color="white"
-              anchorX="center"
-              anchorY="middle"
-            >
-              {isProcessing ? 'Processing...' : `Pay $${amount.toFixed(2)}`}
-            </Text>
-          </group>
-          
-          {/* Cancel button */}
-          <group 
-            position={[2, 0, 0]} 
-            onClick={!isProcessing ? onClose : undefined}
-          >
-            <mesh>
-              <planeGeometry args={[3, 1]} />
-              <meshStandardMaterial color="#6b7280" />
-            </mesh>
-            <Text
-              position={[0, 0, 0.1]}
-              fontSize={0.3}
-              color="white"
-              anchorX="center"
-              anchorY="middle"
-            >
-              Cancel
-            </Text>
-          </group>
-        </group>
-        
-        {/* Demo note */}
-        <Text
-          position={[0, -4, 0]}
-          fontSize={0.2}
-          color="#6b7280"
-          anchorX="center"
-          anchorY="middle"
+
+        {error && <p style={errorStyle}>{error}</p>}
+
+        <button 
+          onClick={handlePayment} 
+          disabled={isProcessing} 
+          style={{...buttonStyle, backgroundColor: '#3b82f6', color: 'white', marginTop: '20px'}}
         >
-          This is a demo payment system
-        </Text>
-        
-        {/* Auto-fill demo data button */}
-        <group 
-          position={[0, -4.8, 0]} 
-          onClick={() => {
-            if (paymentMethod === 'card') {
-              setCardDetails({
-                number: '4111111111111111',
-                expiry: '12/25',
-                cvv: '123',
-                name: 'Demo User'
-              });
-            } else {
-              setCryptoWallet('0x1234567890abcdef1234567890abcdef12345678');
-            }
-          }}
+          {isProcessing ? 'Processing...' : 'Pay Now'}
+        </button>
+        <button 
+          onClick={onClose} 
+          style={{...buttonStyle, backgroundColor: '#4b5563', color: 'white', marginTop: '20px', marginLeft: '10px'}}
         >
-          <mesh>
-            <planeGeometry args={[4, 0.6]} />
-            <meshStandardMaterial color="#3b82f6" />
-          </mesh>
-          <Text
-            position={[0, 0, 0.1]}
-            fontSize={0.2}
-            color="white"
-            anchorX="center"
-            anchorY="middle"
-          >
-            Fill Demo Data
-          </Text>
-        </group>
-      </group>
-    </group>
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }
 
