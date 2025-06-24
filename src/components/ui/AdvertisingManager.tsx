@@ -3,7 +3,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUser } from '@clerk/nextjs';
 import { Id } from '../../../convex/_generated/dataModel';
-import BannerStyleSelector from './BannerStyleSelector';
+import LogoPlayground from './LogoPlayground';
 
 interface AdvertisingManagerProps {
   plotId: Id<'plots'>;
@@ -22,11 +22,15 @@ export function AdvertisingManager({ plotId, onClose }: AdvertisingManagerProps)
     website: '',
     description: '',
     contactEmail: '',
-    bannerStyle: 'classic',
-    bannerPosition: 'front',
-    bannerColor: '#ffffff',
-    textColor: '#333333',
-    animationStyle: 'none',
+    logoSvg: '',
+    logoPosition: {
+      x: 0,
+      y: 1,
+      z: 1.1,
+      scale: 1,
+      rotation: 0,
+      face: 'front' as 'front' | 'back' | 'left' | 'right' | 'top'
+    },
   });
   
   const [isLoading, setIsLoading] = useState(false);
@@ -42,11 +46,15 @@ export function AdvertisingManager({ plotId, onClose }: AdvertisingManagerProps)
         website: plotAdvertising.advertising.website || '',
         description: plotAdvertising.advertising.description || '',
         contactEmail: plotAdvertising.advertising.contactEmail || '',
-        bannerStyle: plotAdvertising.advertising.bannerStyle || 'classic',
-        bannerPosition: plotAdvertising.advertising.bannerPosition || 'front',
-        bannerColor: plotAdvertising.advertising.bannerColor || '#ffffff',
-        textColor: plotAdvertising.advertising.textColor || '#333333',
-        animationStyle: plotAdvertising.advertising.animationStyle || 'none',
+        logoSvg: plotAdvertising.advertising.logoSvg || '',
+        logoPosition: plotAdvertising.advertising.logoPosition || {
+          x: 0,
+          y: 1,
+          z: 1.1,
+          scale: 1,
+          rotation: 0,
+          face: 'front' as 'front' | 'back' | 'left' | 'right' | 'top'
+        },
       });
     }
   }, [plotAdvertising]);
@@ -73,6 +81,8 @@ export function AdvertisingManager({ plotId, onClose }: AdvertisingManagerProps)
           website: advertising.website.trim() || undefined,
           description: advertising.description.trim() || undefined,
           contactEmail: advertising.contactEmail.trim() || undefined,
+          logoSvg: advertising.logoSvg || undefined,
+          logoPosition: advertising.logoPosition,
         },
       });
       
@@ -117,6 +127,15 @@ export function AdvertisingManager({ plotId, onClose }: AdvertisingManagerProps)
         website: '',
         description: '',
         contactEmail: '',
+        logoSvg: '',
+        logoPosition: {
+          x: 0,
+          y: 1,
+          z: 1.1,
+          scale: 1,
+          rotation: 0,
+          face: 'front' as 'front' | 'back' | 'left' | 'right' | 'top'
+        },
       });
       
       // Close after a short delay
@@ -293,31 +312,16 @@ export function AdvertisingManager({ plotId, onClose }: AdvertisingManagerProps)
               />
             </div>
 
-            {/* Banner Style Selector */}
+            {/* Logo Playground */}
             <div style={{ marginBottom: '20px', borderTop: '1px solid #4b5563', paddingTop: '20px' }}>
-              <BannerStyleSelector
-                selectedStyle={advertising.bannerStyle}
-                selectedPosition={advertising.bannerPosition}
-                selectedBannerColor={advertising.bannerColor}
-                selectedTextColor={advertising.textColor}
-                selectedAnimation={advertising.animationStyle}
-                onStyleChange={(styleId, style) => {
-                  setAdvertising({
-                    ...advertising,
-                    bannerStyle: styleId,
-                    bannerColor: style.preview.bannerColor,
-                    textColor: style.preview.textColor,
-                    animationStyle: style.preview.animationStyle
-                  });
+              <LogoPlayground
+                logoSvg={advertising.logoSvg}
+                logoPosition={advertising.logoPosition}
+                onLogoUpload={(svgContent) => {
+                  setAdvertising({ ...advertising, logoSvg: svgContent });
                 }}
-                onPositionChange={(positionId) => {
-                  setAdvertising({ ...advertising, bannerPosition: positionId });
-                }}
-                onColorChange={(bannerColor, textColor) => {
-                  setAdvertising({ ...advertising, bannerColor, textColor });
-                }}
-                onAnimationChange={(animation) => {
-                  setAdvertising({ ...advertising, animationStyle: animation });
+                onPositionChange={(position) => {
+                  setAdvertising({ ...advertising, logoPosition: position });
                 }}
                 companyName={advertising.companyName}
               />

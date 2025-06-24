@@ -5,7 +5,7 @@ import { useUser } from '@clerk/nextjs';
 import PaymentModal from './PaymentModal';
 import ModelUploader from './ModelUploader';
 import BuildingModelSelector from './BuildingModelSelector';
-import BannerStyleSelector from './BannerStyleSelector';
+import LogoPlayground from './LogoPlayground';
 
 interface PlotCreatorProps {
   initialPosition: { x: number; z: number };
@@ -69,11 +69,7 @@ export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreato
     logoUrl: '',
     description: '',
     contactEmail: '',
-    bannerStyle: 'classic',
-    bannerPosition: 'front',
-    bannerColor: '#ffffff',
-    textColor: '#333333',
-    animationStyle: 'none',
+    logoSvg: '',
   });
 
   // Payment state
@@ -276,11 +272,8 @@ export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreato
           logoFileName: advertising.logoFile?.name,
           description: advertising.description,
           contactEmail: advertising.contactEmail,
-          bannerStyle: advertising.bannerStyle,
-          bannerPosition: advertising.bannerPosition,
-          bannerColor: advertising.bannerColor,
-          textColor: advertising.textColor,
-          animationStyle: advertising.animationStyle,
+          logoSvg: advertising.logoSvg,
+          logoPosition: advertising.logoPosition,
         } : undefined,
         metadata: {
           landType,
@@ -839,34 +832,20 @@ export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreato
                     />
                   </div>
 
-                  {/* Banner Style Selection */}
+                  {/* Logo Playground */}
                   <div style={{ marginTop: '24px' }}>
-                    <h4 style={{ fontSize: '16px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Banner Customization</h4>
-                    <BannerStyleSelector
-                      selectedStyle={advertising.bannerStyle}
-                      selectedPosition={advertising.bannerPosition}
-                      selectedBannerColor={advertising.bannerColor}
-                      selectedTextColor={advertising.textColor}
-                      selectedAnimation={advertising.animationStyle}
-                      onStyleChange={(styleId, style) => {
-                        setAdvertising({
-                          ...advertising,
-                          bannerStyle: styleId,
-                          bannerColor: style.preview.bannerColor,
-                          textColor: style.preview.textColor,
-                          animationStyle: style.preview.animationStyle
-                        });
-                      }}
-                      onPositionChange={(positionId) => {
-                        setAdvertising({ ...advertising, bannerPosition: positionId });
-                      }}
-                      onColorChange={(bannerColor, textColor) => {
-                        setAdvertising({ ...advertising, bannerColor, textColor });
-                      }}
-                      onAnimationChange={(animation) => {
-                        setAdvertising({ ...advertising, animationStyle: animation });
+                    <h4 style={{ fontSize: '16px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Bubble Message Customization</h4>
+                    <LogoPlayground
+                      logoSvg={advertising.logoSvg}
+                      onLogoUpload={(svgContent) => {
+                        setAdvertising({ ...advertising, logoSvg: svgContent });
                       }}
                       companyName={advertising.companyName}
+                      website={advertising.website}
+                      onWebsiteChange={(website) => {
+                        setAdvertising({ ...advertising, website });
+                      }}
+                      buildingType={mainBuilding.type}
                     />
                   </div>
                 </>

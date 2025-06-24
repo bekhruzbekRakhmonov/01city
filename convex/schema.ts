@@ -79,6 +79,7 @@ export default defineSchema({
       website: v.optional(v.string()), // Company website URL
       logoUrl: v.optional(v.string()), // URL to uploaded SVG logo
       logoFileName: v.optional(v.string()), // Original filename of the logo
+      logoSvg: v.optional(v.string()), // SVG content for the logo
       description: v.optional(v.string()), // Company/product description
       contactEmail: v.optional(v.string()), // Contact email for inquiries
       uploadedAt: v.optional(v.number()),

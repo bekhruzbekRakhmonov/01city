@@ -203,6 +203,7 @@ export const purchasePlot = mutation({
       website: v.optional(v.string()),
       logoUrl: v.optional(v.string()),
       logoFileName: v.optional(v.string()),
+      logoSvg: v.optional(v.string()),
       description: v.optional(v.string()),
       contactEmail: v.optional(v.string()),
       bannerStyle: v.optional(v.string()),

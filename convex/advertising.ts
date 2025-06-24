@@ -59,11 +59,7 @@ export const updateAdvertising = mutation({
       website: v.optional(v.string()),
       description: v.optional(v.string()),
       contactEmail: v.optional(v.string()),
-      bannerStyle: v.optional(v.string()), // 'classic', 'modern', 'neon', 'minimal', 'billboard'
-      bannerPosition: v.optional(v.string()), // 'front', 'side', 'top', 'corner', 'wrap'
-      bannerColor: v.optional(v.string()),
-      textColor: v.optional(v.string()),
-      animationStyle: v.optional(v.string()), // 'none', 'glow', 'pulse', 'scroll'
+      logoSvg: v.optional(v.string()), // SVG content as string
     }),
   },
   handler: async (ctx, args) => {
@@ -84,11 +80,7 @@ export const updateAdvertising = mutation({
         website: args.advertising.website,
         description: args.advertising.description,
         contactEmail: args.advertising.contactEmail,
-        bannerStyle: args.advertising.bannerStyle || 'classic',
-        bannerPosition: args.advertising.bannerPosition || 'front',
-        bannerColor: args.advertising.bannerColor || '#ffffff',
-        textColor: args.advertising.textColor || '#333333',
-        animationStyle: args.advertising.animationStyle || 'none',
+        logoSvg: args.advertising.logoSvg,
         uploadedAt: plot.advertising?.uploadedAt || timestamp,
       },
       updatedAt: timestamp,
@@ -137,6 +129,7 @@ export const getPlotAdvertising = query({
       companyName: plot.advertising?.companyName,
       website: plot.advertising?.website,
       logoUrl: plot.advertising?.logoUrl,
+      logoSvg: plot.advertising?.logoSvg,
       description: plot.advertising?.description,
       contactEmail: plot.advertising?.contactEmail,
     };

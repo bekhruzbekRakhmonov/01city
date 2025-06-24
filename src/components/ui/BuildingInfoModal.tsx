@@ -14,11 +14,15 @@ interface BuildingInfoTooltipProps {
       website?: string;
       description?: string;
       contactEmail?: string;
-      bannerStyle?: string;
-      bannerPosition?: string;
-      bannerColor?: string;
-      textColor?: string;
-      animationStyle?: string;
+      logoSvg?: string;
+  logoPosition?: {
+    x: number;
+    y: number;
+    z: number;
+    scale: number;
+    rotation: number;
+    face: string;
+  };
     };
   } | null;
 }
