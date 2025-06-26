@@ -29,37 +29,25 @@ interface BuildingProps {
   };
   plotId?: string;
   onInteract?: (plotId: string) => void;
-  advertising?: {
-    enabled: boolean;
+  companyInfo?: {
     companyName: string;
-    website?: string;
-    logoUrl?: string;
-    logoFileName?: string;
-    logoSvg?: string;
-    logoPosition?: {
-      x: number;
-      y: number;
-      z: number;
-      scale: number;
-      rotation: number;
-      face: string;
-    };
-    description?: string;
-    contactEmail?: string;
+    website: string;
+    logoSvg: string;
+    shortDescription: string;
   };
 }
 
 export function Building({ 
-  type, 
-  position, 
-  height, 
-  color, 
-  rotation = 0,
+  type,
+  position,
+  height,
+  color,
+  rotation,
   customizations,
   selectedModel,
   plotId,
   onInteract,
-  advertising
+  companyInfo
 }: BuildingProps) {
   console.log("selectedModel", selectedModel)
   const buildingRef = useRef<THREE.Object3D>(null);
@@ -327,10 +315,10 @@ export function Building({
   
   // Create SVG texture for logo
   const svgTexture = useMemo(() => {
-    if (!advertising?.logoSvg) return null;
+    if (!companyInfo?.logoSvg) return null;
     
     // Create a blob URL from SVG content
-    const svgBlob = new Blob([advertising.logoSvg], { type: 'image/svg+xml' });
+    const svgBlob = new Blob([companyInfo.logoSvg], { type: 'image/svg+xml' });
     const svgUrl = URL.createObjectURL(svgBlob);
     
     // Create texture from SVG
@@ -339,7 +327,7 @@ export function Building({
     texture.flipY = false;
     
     return texture;
-  }, [advertising?.logoSvg]);
+  }, [companyInfo?.logoSvg]);
 
 
   
@@ -367,7 +355,7 @@ export function Building({
             color={color}
             selected={hovered || clicked}
             height={height}
-            advertising={advertising}
+            companyInfo={companyInfo}
           />
         </group>
       );
@@ -1128,9 +1116,9 @@ export function Building({
       {showInfoModal && (
         <Html>
           <PlotInfo
-            title={advertising?.companyName || selectedModel?.name || type}
-            description={advertising?.description || `${type.charAt(0).toUpperCase() + type.slice(1)} building with height of ${height}m`}
-            creatorInfo={advertising?.contactEmail ? `Contact: ${advertising.contactEmail}` : undefined}
+            title={companyInfo?.companyName || selectedModel?.name || type}
+            description={companyInfo?.shortDescription || `${type.charAt(0).toUpperCase() + type.slice(1)} building with height of ${height}m`}
+            creatorInfo={companyInfo ? `${companyInfo.companyName} - ${companyInfo.shortDescription}` : undefined}
             onClose={() => setShowInfoModal(false)}
           />
         </Html>

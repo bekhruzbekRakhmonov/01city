@@ -1,5 +1,5 @@
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 // Get current user info (used by frontend components)
 export const getCurrentUser = query({  
@@ -111,9 +111,14 @@ export const createOrUpdateProfile = mutation({
         email: args.email,
         credits: 0,
         totalSpent: 0,
+        lifetimeValue: 0,
         subscriptionTier: "free",
         freeSquaresUsed: 0,
         freeSquaresLimit: 25, // 5x5 plot
+        aiCreditsUsed: 0,
+        aiCreditsLimit: 100,
+        onboardingCompleted: false,
+        loginCount: 1,
         createdAt: timestamp,
         updatedAt: timestamp,
       });
@@ -202,7 +207,6 @@ export const upgradeSubscription = mutation({
     // Update user subscription
     await ctx.db.patch(user._id, {
       subscriptionTier: args.tier,
-      subscriptionExpiry: expiryDate,
       freeSquaresLimit: newFreeSquaresLimit,
       totalSpent: user.totalSpent + totalCost,
       updatedAt: timestamp,

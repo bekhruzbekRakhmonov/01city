@@ -44,7 +44,7 @@ export function City({ onPlotSelect, onGovernmentBuildingClick, showLandSelector
       <Ground />
       <GovernmentBuilding 
         position={[0, 0, 0]} 
-        scale={1} 
+        scale={2} 
         onBuildingClick={onGovernmentBuildingClick}
       />
       

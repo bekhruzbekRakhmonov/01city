@@ -28,7 +28,7 @@ export function Scene({ onPlotSelect }: SceneProps) {
         dpr={[1, 2]} // Responsive rendering for different device pixel ratios
       >
         {/* Fog to create depth and atmosphere */}
-        <fog attach="fog" args={['#a0c1e8', 300, 1500]} />
+        {/* <fog attach="fog" args={['#a0c1e8', 300, 1500]} /> */}
         <Suspense fallback={null}>
           {/* Enhanced sky with more realistic Silicon Valley lighting */}
           <Sky 
@@ -96,7 +96,7 @@ export function Scene({ onPlotSelect }: SceneProps) {
             minPolarAngle={0.2} 
             maxPolarAngle={Math.PI / 2.1} 
             minDistance={15}
-            maxDistance={1000}
+            maxDistance={700}
             enableDamping={true}
             dampingFactor={0.05}
             zoomToCursor={true}

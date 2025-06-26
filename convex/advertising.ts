@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 // Upload company logo (SVG format)
 export const uploadLogo = mutation({
@@ -30,36 +30,33 @@ export const uploadLogo = mutation({
     
     // Update the plot with logo information
     await ctx.db.patch(args.plotId, {
-      advertising: {
-        ...plot.advertising,
-        enabled: true,
+      companyInfo: {
         companyName: args.companyName,
-        logoUrl,
-        logoFileName: args.fileName,
+        website: plot.companyInfo?.website || "",
+        logoSvg: args.logoData,
+        shortDescription: plot.companyInfo?.shortDescription || "",
         uploadedAt: timestamp,
       },
       updatedAt: timestamp,
     });
     
     return {
-      logoUrl,
+      logoSvg: args.logoData,
       message: "Logo uploaded successfully",
     };
   },
 });
 
-// Update advertising information for a plot
-export const updateAdvertising = mutation({
+// Update company information for a plot
+export const updateCompanyInfo = mutation({
   args: {
     userId: v.string(),
     plotId: v.id("plots"),
-    advertising: v.object({
-      enabled: v.boolean(),
+    companyInfo: v.object({
       companyName: v.string(),
-      website: v.optional(v.string()),
-      description: v.optional(v.string()),
-      contactEmail: v.optional(v.string()),
-      logoSvg: v.optional(v.string()), // SVG content as string
+      website: v.string(),
+      logoSvg: v.string(),
+      shortDescription: v.string(),
     }),
   },
   handler: async (ctx, args) => {
@@ -71,34 +68,31 @@ export const updateAdvertising = mutation({
       throw new Error("Plot not found or access denied");
     }
     
-    // Update advertising information
+    // Update company information
     await ctx.db.patch(args.plotId, {
-      advertising: {
-        ...plot.advertising,
-        enabled: args.advertising.enabled,
-        companyName: args.advertising.companyName,
-        website: args.advertising.website,
-        description: args.advertising.description,
-        contactEmail: args.advertising.contactEmail,
-        logoSvg: args.advertising.logoSvg,
-        uploadedAt: plot.advertising?.uploadedAt || timestamp,
+      companyInfo: {
+        companyName: args.companyInfo.companyName,
+        website: args.companyInfo.website,
+        logoSvg: args.companyInfo.logoSvg,
+        shortDescription: args.companyInfo.shortDescription,
+        uploadedAt: timestamp,
       },
       updatedAt: timestamp,
     });
-    
+
     return {
-      message: "Advertising information updated successfully",
+      message: "Company information updated successfully",
     };
   },
 });
 
-// Get all plots with advertising enabled
-export const getAdvertisingPlots = query({
+// Get all plots with company information
+export const getCompanyPlots = query({
   args: {},
   handler: async (ctx) => {
     const plots = await ctx.db
       .query("plots")
-      .filter((q) => q.eq(q.field("advertising.enabled"), true))
+      .filter((q) => q.neq(q.field("companyInfo"), undefined))
       .collect();
     
     return plots.map(plot => ({
@@ -106,15 +100,15 @@ export const getAdvertisingPlots = query({
       position: plot.position,
       size: plot.size,
       mainBuilding: plot.mainBuilding,
-      advertising: plot.advertising,
+      companyInfo: plot.companyInfo,
       username: plot.username,
       createdAt: plot.createdAt,
     }));
   },
 });
 
-// Get advertising information for a specific plot
-export const getPlotAdvertising = query({
+// Get company information for a specific plot
+export const getPlotCompanyInfo = query({
   args: {
     plotId: v.id("plots"),
   },
@@ -125,13 +119,11 @@ export const getPlotAdvertising = query({
     }
     
     return {
-      advertising: plot.advertising,
-      companyName: plot.advertising?.companyName,
-      website: plot.advertising?.website,
-      logoUrl: plot.advertising?.logoUrl,
-      logoSvg: plot.advertising?.logoSvg,
-      description: plot.advertising?.description,
-      contactEmail: plot.advertising?.contactEmail,
+      companyInfo: plot.companyInfo,
+      companyName: plot.companyInfo?.companyName,
+      website: plot.companyInfo?.website,
+      logoSvg: plot.companyInfo?.logoSvg,
+      shortDescription: plot.companyInfo?.shortDescription,
     };
   },
 });
@@ -146,8 +138,8 @@ export const searchByCompany = query({
       .query("plots")
       .filter((q) => 
         q.and(
-          q.eq(q.field("advertising.enabled"), true),
-          q.eq(q.field("advertising.companyName"), args.companyName)
+          q.neq(q.field("companyInfo"), undefined),
+          q.eq(q.field("companyInfo.companyName"), args.companyName)
         )
       )
       .collect();
@@ -156,15 +148,15 @@ export const searchByCompany = query({
       _id: plot._id,
       position: plot.position,
       size: plot.size,
-      advertising: plot.advertising,
+      companyInfo: plot.companyInfo,
       username: plot.username,
       createdAt: plot.createdAt,
     }));
   },
 });
 
-// Remove advertising from a plot
-export const removeAdvertising = mutation({
+// Remove company information from a plot
+export const removeCompanyInfo = mutation({
   args: {
     userId: v.string(),
     plotId: v.id("plots"),
@@ -178,14 +170,14 @@ export const removeAdvertising = mutation({
       throw new Error("Plot not found or access denied");
     }
     
-    // Remove advertising information
+    // Remove company information
     await ctx.db.patch(args.plotId, {
-      advertising: undefined,
+      companyInfo: undefined,
       updatedAt: timestamp,
     });
     
     return {
-      message: "Advertising removed successfully",
+      message: "Company information removed successfully",
     };
   },
 });

@@ -1,5 +1,5 @@
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { query, mutation } from "./_generated/server";
 
 // Get pricing information for the frontend
 export const getPricingInfo = query({
@@ -124,8 +124,6 @@ export const getUserDashboard = query({
         totalFreeSquares,
         remainingFreeSquares: Math.max(0, totalFreeSquares - (user.freeSquaresUsed || 0)),
         totalSpentFormatted: `$${((user.totalSpent || 0) / 100).toFixed(2)}`,
-        subscriptionExpiryFormatted: user.subscriptionExpiry ? 
-          new Date(user.subscriptionExpiry).toLocaleDateString() : null,
       } : null,
       plots: plots.map(plot => ({
         ...plot,
@@ -197,21 +195,51 @@ export const purchasePlot = mutation({
     paymentIntentId: v.optional(v.string()),
     paymentId: v.optional(v.union(v.null(), v.string())), // Allow null or string for paymentId
     paymentMethod: v.optional(v.string()), // Added to handle payment method (e.g., "credits", "stripe")
-    advertising: v.optional(v.object({
+    companyInfo: v.object({
+      companyName: v.string(),
+      website: v.string(),
+      logoSvg: v.string(),
+      shortDescription: v.string(),
+    }),
+    address: v.object({
+      street: v.string(),
+      city: v.string(),
+      state: v.string(),
+      zipCode: v.string(),
+      country: v.string(),
+    }),
+    mailbox: v.object({
       enabled: v.boolean(),
+      address: v.optional(v.string()),
+      type: v.optional(v.string()),
+      autoResponder: v.optional(v.boolean()),
+      customGreeting: v.optional(v.string()),
+    }),
+    advertising: v.object({
       companyName: v.string(),
       website: v.optional(v.string()),
       logoUrl: v.optional(v.string()),
-      logoFileName: v.optional(v.string()),
-      logoSvg: v.optional(v.string()),
-      description: v.optional(v.string()),
-      contactEmail: v.optional(v.string()),
-      bannerStyle: v.optional(v.string()),
-      bannerPosition: v.optional(v.string()),
-      bannerColor: v.optional(v.string()),
-      textColor: v.optional(v.string()),
-      animationStyle: v.optional(v.string()),
-    })),
+      description: v.string(),
+      contact: v.object({
+        email: v.string(),
+        phone: v.optional(v.string()),
+      }),
+      industry: v.string(),
+      services: v.string(),
+      socialMedia: v.object({
+        linkedin: v.optional(v.string()),
+        twitter: v.optional(v.string()),
+      }),
+      businessHours: v.string(),
+    }),
+    aiFeatures: v.object({
+      chatbot: v.boolean(),
+      autoResponder: v.boolean(),
+      leadCapture: v.boolean(),
+      businessIntelligence: v.boolean(),
+      personality: v.optional(v.string()),
+      customPrompts: v.optional(v.string()),
+    }),
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
@@ -246,9 +274,14 @@ export const purchasePlot = mutation({
         email: "",
         credits: 0,
         totalSpent: 0,
+        lifetimeValue: 0,
         subscriptionTier: "free",
         freeSquaresUsed: 0,
         freeSquaresLimit: 25,
+        aiCreditsUsed: 0,
+        aiCreditsLimit: 100,
+        onboardingCompleted: false,
+        loginCount: 0,
         createdAt: timestamp,
         updatedAt: timestamp,
       });
@@ -334,6 +367,44 @@ export const purchasePlot = mutation({
         rotation: args.building?.rotation?.y || 0,
         customizations: args.building,
       },
+      address: {
+        street: args.address.street,
+        city: args.address.city,
+        state: args.address.state,
+        zipCode: args.address.zipCode,
+        country: args.address.country,
+        coordinates: {
+          lat: args.position.x, // Example from position
+          lng: args.position.z, // Example from position
+        },
+      },
+      mailbox: {
+        enabled: args.mailbox.enabled,
+        address: args.mailbox.enabled ? args.mailbox.address || "" : "",
+        type: args.mailbox.enabled ? args.mailbox.type || "basic" : undefined,
+        autoResponder: args.mailbox.enabled ? args.mailbox.autoResponder || false : false,
+        customGreeting: args.mailbox.enabled ? args.mailbox.customGreeting || "" : "",
+        publicContact: {},
+      },
+      advertising: {
+        companyName: args.advertising.companyName,
+        website: args.advertising.website,
+        logoUrl: args.advertising.logoUrl,
+        description: args.advertising.description,
+        contact: args.advertising.contact,
+        industry: args.advertising.industry,
+        services: args.advertising.services,
+        socialMedia: args.advertising.socialMedia,
+        businessHours: args.advertising.businessHours,
+      },
+      aiFeatures: {
+        chatbot: args.aiFeatures.chatbot,
+        autoResponder: args.aiFeatures.autoResponder,
+        leadCapture: args.aiFeatures.leadCapture,
+        businessIntelligence: args.aiFeatures.businessIntelligence,
+        personality: args.aiFeatures.personality || "professional",
+        customPrompts: args.aiFeatures.customPrompts || "",
+      },
       pricing: {
         totalCost,
         freeSquares: freeSquaresToUse,
@@ -348,16 +419,13 @@ export const purchasePlot = mutation({
         modelType: "glb",
         uploadedAt: timestamp,
       } : undefined,
-      advertising: args.advertising ? {
-        enabled: args.advertising.enabled,
-        companyName: args.advertising.companyName,
-        website: args.advertising.website,
-        logoUrl: args.advertising.logoUrl,
-        logoFileName: args.advertising.logoFileName,
-        description: args.advertising.description,
-        contactEmail: args.advertising.contactEmail,
+      companyInfo: {
+        companyName: args.companyInfo.companyName,
+        website: args.companyInfo.website,
+        logoSvg: args.companyInfo.logoSvg,
+        shortDescription: args.companyInfo.shortDescription,
         uploadedAt: timestamp,
-      } : undefined,
+      },
       createdAt: timestamp,
       updatedAt: timestamp,
     });

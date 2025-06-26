@@ -20,23 +20,11 @@ interface BuildingModelProps {
   color?: string;
   selected?: boolean;
   height?: number;
-  advertising?: {
-    enabled: boolean;
+  companyInfo?: {
     companyName: string;
-    website?: string;
-    logoUrl?: string;
-    logoFileName?: string;
-    logoSvg?: string;
-    logoPosition?: {
-      x: number;
-      y: number;
-      z: number;
-      scale: number;
-      rotation: number;
-      face: string;
-    };
-    description?: string;
-    contactEmail?: string;
+    website: string;
+    logoSvg: string;
+    shortDescription: string;
   };
   [key: string]: any; // For additional props
 }
@@ -49,10 +37,11 @@ export function BuildingModel({
   color,
   selected = false,
   height = 5,
-  advertising,
+  companyInfo,
   ...props
 }: BuildingModelProps) {
   console.log("modelatype", modelType)
+  console.log("companyInfo", companyInfo)
   const group = useRef<THREE.Group>(null);
   const modelPath = `/buildings3dmodel/${modelType === 'low_poly' ? 'low_poly_building' : 'sugarcube_corner'}.glb`;
   const { scene } = useGLTF(modelPath) as unknown as GLTF;
@@ -92,7 +81,7 @@ export function BuildingModel({
 
   // Bubble message rendering function
   const renderBubbleMessage = () => {
-    if (!advertising?.enabled) {
+    if (!companyInfo) {
       return null;
     }
 
@@ -117,26 +106,24 @@ export function BuildingModel({
       >
         <div className="bg-white rounded-xl p-8 shadow-2xl border-4 border-blue-500" style={{ width: '400px', minHeight: '200px' }}>
           <div className="flex items-center space-x-4">
-            {advertising.logoSvg && (
+            {companyInfo.logoSvg && (
               <div 
                 className="w-20 h-20 bg-white rounded-lg flex-shrink-0 flex items-center justify-center border-2 border-gray-200"
-                dangerouslySetInnerHTML={{ __html: advertising.logoSvg }}
+                dangerouslySetInnerHTML={{ __html: companyInfo.logoSvg }}
               />
             )}
             <div className="flex-1">
               <div className="text-blue-600 font-bold text-2xl cursor-pointer hover:text-blue-800 transition-colors"
-                   onClick={() => advertising.website && window.open(advertising.website.startsWith('http') ? advertising.website : `https://${advertising.website}`, '_blank')}
+                   onClick={() => companyInfo.website && window.open(companyInfo.website.startsWith('http') ? companyInfo.website : `https://${companyInfo.website}`, '_blank')}
               >
                 🌐 Visit Website
               </div>
               <div className="text-gray-800 text-xl font-semibold mt-2">
-                {advertising.companyName}
+                {companyInfo.companyName}
               </div>
-              {advertising.description && (
-                <div className="text-gray-600 text-lg mt-3 leading-relaxed">
-                  {advertising.description}
-                </div>
-              )}
+              <div className="text-gray-600 text-lg mt-3 leading-relaxed">
+                {companyInfo.shortDescription}
+              </div>
             </div>
           </div>
           <div 

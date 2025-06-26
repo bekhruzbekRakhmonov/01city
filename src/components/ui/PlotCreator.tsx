@@ -5,7 +5,7 @@ import { useUser } from '@clerk/nextjs';
 import PaymentModal from './PaymentModal';
 import ModelUploader from './ModelUploader';
 import BuildingModelSelector from './BuildingModelSelector';
-import LogoPlayground from './LogoPlayground';
+
 
 interface PlotCreatorProps {
   initialPosition: { x: number; z: number };
@@ -60,16 +60,62 @@ export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreato
   const [description, setDescription] = useState('');
   const [creatorInfo, setCreatorInfo] = useState('');
 
-  // Advertising configuration
+  // Address information
+  const [address, setAddress] = useState({
+    street: '',
+    number: '',
+    district: '',
+    city: 'MetroSpace City',
+    postalCode: ''
+  });
+
+  // Mailbox configuration
+  const [mailbox, setMailbox] = useState({
+    enabled: false,
+    address: '',
+    type: 'standard', // 'standard', 'premium', 'business'
+    autoResponder: false,
+    customGreeting: ''
+  });
+
+  // Advertising/Company information
   const [advertising, setAdvertising] = useState({
     enabled: false,
     companyName: '',
     website: '',
-    logoFile: null as File | null,
     logoUrl: '',
     description: '',
     contactEmail: '',
-    logoSvg: '',
+    industry: '',
+    services: [] as string[],
+    socialMedia: {
+      linkedin: '',
+      twitter: '',
+      facebook: '',
+      instagram: ''
+    },
+    businessHours: {
+      timezone: 'UTC',
+      schedule: [
+        { day: 'Monday', open: '09:00', close: '17:00', closed: false },
+        { day: 'Tuesday', open: '09:00', close: '17:00', closed: false },
+        { day: 'Wednesday', open: '09:00', close: '17:00', closed: false },
+        { day: 'Thursday', open: '09:00', close: '17:00', closed: false },
+        { day: 'Friday', open: '09:00', close: '17:00', closed: false },
+        { day: 'Saturday', open: '10:00', close: '16:00', closed: false },
+        { day: 'Sunday', open: '10:00', close: '16:00', closed: true }
+      ]
+    }
+  });
+
+  // AI Features configuration
+  const [aiFeatures, setAiFeatures] = useState({
+    chatbotEnabled: false,
+    autoResponder: false,
+    leadCapture: false,
+    businessIntelligence: false,
+    aiPersonality: 'professional',
+    customPrompts: [] as string[]
   });
 
   // Payment state
@@ -79,13 +125,37 @@ export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreato
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showModelUploader, setShowModelUploader] = useState(false);
 
-  // Calculate pricing
+  // Calculate pricing with new features
   const baseLandPrice = landType === 'premium' ? 1000 : 0; // $10.00 for premium land
   const customModelPrice = customModel.enabled ? 2000 : 0; // $20.00 for custom model
-  const totalPrice = baseLandPrice + customModelPrice;
+  const mailboxPrice = mailbox.enabled ? (mailbox.type === 'business' ? 1500 : mailbox.type === 'premium' ? 1000 : 500) : 0;
+  const advertisingPrice = advertising.enabled ? 2000 : 0; // $20.00 for advertising
+  const aiPrice = Object.values(aiFeatures).filter(Boolean).length * 500; // $5.00 per AI feature
+  const totalPrice = baseLandPrice + customModelPrice + mailboxPrice + advertisingPrice + aiPrice;
 
   // Check if user has enough credits for free land
   const hasEnoughCredits = userInfo?.freeSquares && userInfo.freeSquares > 0;
+
+  // Generate unique mailbox address
+  const generateMailboxAddress = () => {
+    if (!mailbox.enabled) return '';
+    
+    const baseAddress = advertising.companyName 
+      ? advertising.companyName.toLowerCase().replace(/[^a-z0-9]/g, '') 
+      : `plot-${position.x}-${position.z}`;
+    
+    return `${baseAddress}@metrospace.city`;
+  };
+
+  // Update mailbox address when company name changes
+  useEffect(() => {
+    if (mailbox.enabled && advertising.companyName) {
+      setMailbox(prev => ({
+        ...prev,
+        address: generateMailboxAddress()
+      }));
+    }
+  }, [advertising.companyName, mailbox.enabled, position.x, position.z]);
 
   // Handle file upload for custom models
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -264,17 +334,45 @@ export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreato
         creatorInfo,
         paymentMethod: finalPaymentMethod,
         paymentIntentId: paymentId,
-        advertising: advertising.enabled ? {
-          enabled: advertising.enabled,
-          companyName: advertising.companyName,
-          website: advertising.website,
-          logoUrl: advertising.logoUrl,
-          logoFileName: advertising.logoFile?.name,
+        companyInfo: {
+          companyName: companyInfo.companyName,
+          website: companyInfo.website,
+          logoSvg: companyInfo.logoSvg,
+          shortDescription: companyInfo.shortDescription
+        },
+        address: {
+          street: address.street,
+          city: address.city,
+          state: address.state,
+          zipCode: address.zipCode,
+          country: address.country
+        },
+        mailbox: mailbox.enabled ? {
+          enabled: true,
+          address: mailbox.address,
+          type: mailbox.type,
+          autoResponder: mailbox.autoResponder,
+          customGreeting: mailbox.customGreeting
+        } : { enabled: false },
+        advertising: {
+          companyName: companyInfo.companyName,
+          website: companyInfo.website,
+          logoUrl: companyInfo.logoSvg,
           description: advertising.description,
-          contactEmail: advertising.contactEmail,
-          logoSvg: advertising.logoSvg,
-          logoPosition: advertising.logoPosition,
-        } : undefined,
+          contact: advertising.contact,
+          industry: advertising.industry,
+          services: advertising.services,
+          socialMedia: advertising.socialMedia,
+          businessHours: advertising.businessHours
+        },
+        aiFeatures: {
+          chatbot: aiFeatures.chatbot,
+          autoResponder: aiFeatures.autoResponder,
+          leadCapture: aiFeatures.leadCapture,
+          businessIntelligence: aiFeatures.businessIntelligence,
+          personality: aiFeatures.personality,
+          customPrompts: aiFeatures.customPrompts
+        },
         metadata: {
           landType,
           customModel: customModel.enabled,
@@ -407,10 +505,125 @@ export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreato
         )}
         <h2 style={titleStyle}>Create Your Plot</h2>
 
-        {/* Step 1: Land Type Selection */}
+        {/* Step 1: Company Information & Land Type Selection */}
         {step === 1 && (
           <div>
-            <h3 style={{ fontSize: '1.25em', marginBottom: '20px', textAlign: 'center', color: '#e5e7eb' }}>Choose Land Type</h3>
+            <h3 style={{ fontSize: '1.25em', marginBottom: '20px', textAlign: 'center', color: '#e5e7eb' }}>Company Information & Land Type</h3>
+            
+            {/* Company Information Section */}
+            <div style={{
+              marginBottom: '32px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <h4 style={{ fontSize: '18px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Company Information</h4>
+              
+              {/* Company Name */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Product or Company Name *</label>
+                <input
+                  type="text"
+                  value={companyInfo.companyName}
+                  onChange={(e) => setCompanyInfo({ ...companyInfo, companyName: e.target.value })}
+                  placeholder="Enter your company or product name"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#374151',
+                    border: '1px solid #4b5563',
+                    borderRadius: '6px',
+                    color: '#d1d5db',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* Website */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Website *</label>
+                <input
+                  type="url"
+                  value={companyInfo.website}
+                  onChange={(e) => setCompanyInfo({ ...companyInfo, website: e.target.value })}
+                  placeholder="https://yourcompany.com"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#374151',
+                    border: '1px solid #4b5563',
+                    borderRadius: '6px',
+                    color: '#d1d5db',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* Logo SVG */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Logo (SVG format) *</label>
+                <input
+                  type="file"
+                  accept=".svg,image/svg+xml"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && file.type === 'image/svg+xml') {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const svgContent = event.target?.result as string;
+                        setCompanyInfo({ ...companyInfo, logoSvg: svgContent });
+                      };
+                      reader.readAsText(file);
+                    } else {
+                      alert('Please upload a valid SVG file.');
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#374151',
+                    border: '1px solid #4b5563',
+                    borderRadius: '6px',
+                    color: '#d1d5db',
+                    fontSize: '14px'
+                  }}
+                />
+                {companyInfo.logoSvg && (
+                  <div style={{ marginTop: '8px', color: '#10b981', fontSize: '14px' }}>✓ Logo uploaded successfully</div>
+                )}
+              </div>
+
+              {/* Short Description */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Short Description (max 10 words) *</label>
+                <input
+                  type="text"
+                  value={companyInfo.shortDescription}
+                  onChange={(e) => {
+                    const words = e.target.value.split(' ').filter(word => word.length > 0);
+                    if (words.length <= 10) {
+                      setCompanyInfo({ ...companyInfo, shortDescription: e.target.value });
+                    }
+                  }}
+                  placeholder="Brief description in 10 words or less"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#374151',
+                    border: '1px solid #4b5563',
+                    borderRadius: '6px',
+                    color: '#d1d5db',
+                    fontSize: '14px'
+                  }}
+                />
+                <div style={{ marginTop: '4px', color: '#9ca3af', fontSize: '12px' }}>
+                  {companyInfo.shortDescription.split(' ').filter(word => word.length > 0).length}/10 words
+                </div>
+              </div>
+            </div>
+
+            <h4 style={{ fontSize: '1.1em', marginBottom: '16px', textAlign: 'center', color: '#e5e7eb' }}>Choose Land Type</h4>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '30px', marginBottom: '30px' }}>
               <div
                 style={{
@@ -450,12 +663,12 @@ export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreato
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <button
                 onClick={handleNext}
-                disabled={(landType === 'free' && !hasEnoughCredits)}
+                disabled={(landType === 'free' && !hasEnoughCredits) || !companyInfo.companyName || !companyInfo.website || !companyInfo.logoSvg || !companyInfo.shortDescription}
                 style={{
-                  ...((landType === 'free' && !hasEnoughCredits) ? { ...buttonStyle, backgroundColor: '#6b7280', cursor: 'not-allowed' } : primaryButtonStyle)
+                  ...((landType === 'free' && !hasEnoughCredits) || !companyInfo.companyName || !companyInfo.website || !companyInfo.logoSvg || !companyInfo.shortDescription ? { ...buttonStyle, backgroundColor: '#6b7280', cursor: 'not-allowed' } : primaryButtonStyle)
                 }}
               >
-                {(landType === 'free' && !hasEnoughCredits) ? 'No Credits Available' : 'Next'}
+                {(landType === 'free' && !hasEnoughCredits) ? 'No Credits Available' : (!companyInfo.companyName || !companyInfo.website || !companyInfo.logoSvg || !companyInfo.shortDescription) ? 'Complete Company Info' : 'Next'}
               </button>
             </div>
           </div>
@@ -621,8 +834,730 @@ export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreato
           </div>
         )}
 
-        {/* Step 3: Building Customization & Review */}
+        {/* Step 3: Address & Location */}
         {step === 3 && (
+          <div>
+            <h3 style={{ fontSize: '1.25em', marginBottom: '20px', textAlign: 'center', color: '#e5e7eb' }}>Address & Location</h3>
+            
+            {/* Address Information */}
+            <div style={{
+              marginBottom: '32px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <h4 style={{ fontSize: '18px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Building Address</h4>
+              
+              {/* Street Address */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Street Address *</label>
+                <input
+                  type="text"
+                  value={address.street}
+                  onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                  placeholder="123 Main Street"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#374151',
+                    border: '1px solid #4b5563',
+                    borderRadius: '6px',
+                    color: '#d1d5db',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* City */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>City *</label>
+                <input
+                  type="text"
+                  value={address.city}
+                  onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                  placeholder="New York"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#374151',
+                    border: '1px solid #4b5563',
+                    borderRadius: '6px',
+                    color: '#d1d5db',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* State and ZIP */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>State *</label>
+                  <input
+                    type="text"
+                    value={address.state}
+                    onChange={(e) => setAddress({ ...address, state: e.target.value })}
+                    placeholder="NY"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>ZIP Code *</label>
+                  <input
+                    type="text"
+                    value={address.zipCode}
+                    onChange={(e) => setAddress({ ...address, zipCode: e.target.value })}
+                    placeholder="10001"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Country */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Country *</label>
+                <input
+                  type="text"
+                  value={address.country}
+                  onChange={(e) => setAddress({ ...address, country: e.target.value })}
+                  placeholder="United States"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#374151',
+                    border: '1px solid #4b5563',
+                    borderRadius: '6px',
+                    color: '#d1d5db',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px' }}>
+              <button
+                style={secondaryButtonStyle}
+                onClick={handlePrevious}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#4b5563'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#374151'}
+              >
+                Previous
+              </button>
+              <button
+                style={{
+                  ...primaryButtonStyle,
+                  opacity: address.street && address.city && address.state && address.zipCode && address.country ? 1 : 0.5,
+                  cursor: address.street && address.city && address.state && address.zipCode && address.country ? 'pointer' : 'not-allowed'
+                }}
+                onClick={handleNext}
+                disabled={!address.street || !address.city || !address.state || !address.zipCode || !address.country}
+                onMouseOver={(e) => {
+                  if (address.street && address.city && address.state && address.zipCode && address.country) {
+                    e.currentTarget.style.backgroundColor = '#2563eb';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (address.street && address.city && address.state && address.zipCode && address.country) {
+                    e.currentTarget.style.backgroundColor = '#3b82f6';
+                  }
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Mailbox Configuration */}
+        {step === 4 && (
+          <div>
+            <h3 style={{ fontSize: '1.25em', marginBottom: '20px', textAlign: 'center', color: '#e5e7eb' }}>Mailbox Configuration</h3>
+            
+            {/* Enable Mailbox */}
+            <div style={{
+              marginBottom: '24px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                <input
+                  type="checkbox"
+                  id="enableMailbox"
+                  checked={mailbox.enabled}
+                  onChange={(e) => setMailbox({ ...mailbox, enabled: e.target.checked })}
+                  style={{ marginRight: '12px', width: '18px', height: '18px' }}
+                />
+                <label htmlFor="enableMailbox" style={{ color: '#d1d5db', fontWeight: '500', fontSize: '16px' }}>
+                  Enable Mailbox (+$5.00/month)
+                </label>
+              </div>
+              <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0 }}>
+                Allow visitors to send messages directly to your plot
+              </p>
+            </div>
+
+            {/* Mailbox Configuration */}
+            {mailbox.enabled && (
+              <div style={{
+                marginBottom: '24px',
+                padding: '20px',
+                backgroundColor: '#1f2937',
+                borderRadius: '8px',
+                border: '1px solid #374151'
+              }}>
+                <h4 style={{ fontSize: '18px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Mailbox Settings</h4>
+                
+                {/* Mailbox Address */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Mailbox Address</label>
+                  <input
+                    type="text"
+                    value={mailbox.address}
+                    onChange={(e) => setMailbox({ ...mailbox, address: e.target.value })}
+                    placeholder="your-company@metrospace.com"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px'
+                    }}
+                  />
+                  <p style={{ color: '#9ca3af', fontSize: '12px', marginTop: '4px' }}>
+                    This will be your public contact address
+                  </p>
+                </div>
+
+                {/* Mailbox Type */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Mailbox Type</label>
+                  <select
+                    value={mailbox.type}
+                    onChange={(e) => setMailbox({ ...mailbox, type: e.target.value as 'basic' | 'business' | 'enterprise' })}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <option value="basic">Basic (100 messages/month)</option>
+                    <option value="business">Business (500 messages/month) +$10</option>
+                    <option value="enterprise">Enterprise (Unlimited) +$25</option>
+                  </select>
+                </div>
+
+                {/* Auto-responder */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                    <input
+                      type="checkbox"
+                      id="enableAutoResponder"
+                      checked={mailbox.autoResponder}
+                      onChange={(e) => setMailbox({ ...mailbox, autoResponder: e.target.checked })}
+                      style={{ marginRight: '12px', width: '18px', height: '18px' }}
+                    />
+                    <label htmlFor="enableAutoResponder" style={{ color: '#d1d5db', fontWeight: '500' }}>
+                      Enable Auto-responder
+                    </label>
+                  </div>
+                  {mailbox.autoResponder && (
+                    <textarea
+                      value={mailbox.customGreeting}
+                      onChange={(e) => setMailbox({ ...mailbox, customGreeting: e.target.value })}
+                      placeholder="Thank you for your message. We'll get back to you soon!"
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        backgroundColor: '#374151',
+                        border: '1px solid #4b5563',
+                        borderRadius: '6px',
+                        color: '#d1d5db',
+                        fontSize: '14px',
+                        resize: 'vertical' as const
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px' }}>
+              <button
+                style={secondaryButtonStyle}
+                onClick={handlePrevious}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#4b5563'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#374151'}
+              >
+                Previous
+              </button>
+              <button
+                style={primaryButtonStyle}
+                onClick={handleNext}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Advertising Configuration */}
+        {step === 5 && (
+          <div>
+            <h3 style={{ fontSize: '1.25em', marginBottom: '20px', textAlign: 'center', color: '#e5e7eb' }}>Advertising Configuration</h3>
+            
+            {/* Company Details */}
+            <div style={{
+              marginBottom: '24px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <h4 style={{ fontSize: '18px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Company Details</h4>
+              
+              {/* Company Description */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Company Description</label>
+                <textarea
+                  value={advertising.description}
+                  onChange={(e) => setAdvertising({ ...advertising, description: e.target.value })}
+                  placeholder="Describe your company and what you do..."
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#374151',
+                    border: '1px solid #4b5563',
+                    borderRadius: '6px',
+                    color: '#d1d5db',
+                    fontSize: '14px',
+                    resize: 'vertical' as const
+                  }}
+                />
+              </div>
+
+              {/* Contact Information */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Contact Email</label>
+                  <input
+                    type="email"
+                    value={advertising.contact.email}
+                    onChange={(e) => setAdvertising({ ...advertising, contact: { ...advertising.contact, email: e.target.value } })}
+                    placeholder="contact@company.com"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Phone Number</label>
+                  <input
+                    type="tel"
+                    value={advertising.contact.phone}
+                    onChange={(e) => setAdvertising({ ...advertising, contact: { ...advertising.contact, phone: e.target.value } })}
+                    placeholder="+1 (555) 123-4567"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Industry */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Industry</label>
+                <select
+                  value={advertising.industry}
+                  onChange={(e) => setAdvertising({ ...advertising, industry: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#374151',
+                    border: '1px solid #4b5563',
+                    borderRadius: '6px',
+                    color: '#d1d5db',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">Select Industry</option>
+                  <option value="technology">Technology</option>
+                  <option value="finance">Finance</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="education">Education</option>
+                  <option value="retail">Retail</option>
+                  <option value="manufacturing">Manufacturing</option>
+                  <option value="consulting">Consulting</option>
+                  <option value="real-estate">Real Estate</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Services */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Services/Products</label>
+                <textarea
+                  value={advertising.services.join(', ')}
+                  onChange={(e) => setAdvertising({ ...advertising, services: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
+                  placeholder="Web Development, Mobile Apps, Consulting (comma-separated)"
+                  rows={2}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#374151',
+                    border: '1px solid #4b5563',
+                    borderRadius: '6px',
+                    color: '#d1d5db',
+                    fontSize: '14px',
+                    resize: 'vertical' as const
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Social Media */}
+            <div style={{
+              marginBottom: '24px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <h4 style={{ fontSize: '18px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Social Media (Optional)</h4>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>LinkedIn</label>
+                  <input
+                    type="url"
+                    value={advertising.socialMedia.linkedin}
+                    onChange={(e) => setAdvertising({ ...advertising, socialMedia: { ...advertising.socialMedia, linkedin: e.target.value } })}
+                    placeholder="https://linkedin.com/company/yourcompany"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Twitter</label>
+                  <input
+                    type="url"
+                    value={advertising.socialMedia.twitter}
+                    onChange={(e) => setAdvertising({ ...advertising, socialMedia: { ...advertising.socialMedia, twitter: e.target.value } })}
+                    placeholder="https://twitter.com/yourcompany"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Business Hours */}
+            <div style={{
+              marginBottom: '24px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <h4 style={{ fontSize: '18px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Business Hours (Optional)</h4>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Weekdays</label>
+                  <input
+                    type="text"
+                    value={advertising.businessHours.weekdays}
+                    onChange={(e) => setAdvertising({ ...advertising, businessHours: { ...advertising.businessHours, weekdays: e.target.value } })}
+                    placeholder="9:00 AM - 5:00 PM"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Weekends</label>
+                  <input
+                    type="text"
+                    value={advertising.businessHours.weekends}
+                    onChange={(e) => setAdvertising({ ...advertising, businessHours: { ...advertising.businessHours, weekends: e.target.value } })}
+                    placeholder="10:00 AM - 2:00 PM or Closed"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px' }}>
+              <button
+                style={secondaryButtonStyle}
+                onClick={handlePrevious}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#4b5563'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#374151'}
+              >
+                Previous
+              </button>
+              <button
+                style={primaryButtonStyle}
+                onClick={handleNext}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 6: AI Features Configuration */}
+        {step === 6 && (
+          <div>
+            <h3 style={{ fontSize: '1.25em', marginBottom: '20px', textAlign: 'center', color: '#e5e7eb' }}>AI Features Configuration</h3>
+            
+            {/* AI Chatbot */}
+            <div style={{
+              marginBottom: '24px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                <input
+                  type="checkbox"
+                  id="enableChatbot"
+                  checked={aiFeatures.chatbot}
+                  onChange={(e) => setAiFeatures({ ...aiFeatures, chatbot: e.target.checked })}
+                  style={{ marginRight: '12px', width: '18px', height: '18px' }}
+                />
+                <label htmlFor="enableChatbot" style={{ color: '#d1d5db', fontWeight: '500', fontSize: '16px' }}>
+                  Enable AI Chatbot (+$15.00/month)
+                </label>
+              </div>
+              <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0 }}>
+                Provide instant responses to visitor inquiries using AI
+              </p>
+            </div>
+
+            {/* AI Auto-responder */}
+            <div style={{
+              marginBottom: '24px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                <input
+                  type="checkbox"
+                  id="enableAIAutoResponder"
+                  checked={aiFeatures.autoResponder}
+                  onChange={(e) => setAiFeatures({ ...aiFeatures, autoResponder: e.target.checked })}
+                  style={{ marginRight: '12px', width: '18px', height: '18px' }}
+                />
+                <label htmlFor="enableAIAutoResponder" style={{ color: '#d1d5db', fontWeight: '500', fontSize: '16px' }}>
+                  Enable AI Auto-responder (+$10.00/month)
+                </label>
+              </div>
+              <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0 }}>
+                Automatically respond to messages with intelligent, context-aware replies
+              </p>
+            </div>
+
+            {/* Lead Capture */}
+            <div style={{
+              marginBottom: '24px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                <input
+                  type="checkbox"
+                  id="enableLeadCapture"
+                  checked={aiFeatures.leadCapture}
+                  onChange={(e) => setAiFeatures({ ...aiFeatures, leadCapture: e.target.checked })}
+                  style={{ marginRight: '12px', width: '18px', height: '18px' }}
+                />
+                <label htmlFor="enableLeadCapture" style={{ color: '#d1d5db', fontWeight: '500', fontSize: '16px' }}>
+                  Enable Lead Capture (+$20.00/month)
+                </label>
+              </div>
+              <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0 }}>
+                Automatically identify and capture potential business leads from conversations
+              </p>
+            </div>
+
+            {/* Business Intelligence */}
+            <div style={{
+              marginBottom: '24px',
+              padding: '20px',
+              backgroundColor: '#1f2937',
+              borderRadius: '8px',
+              border: '1px solid #374151'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                <input
+                  type="checkbox"
+                  id="enableBusinessIntelligence"
+                  checked={aiFeatures.businessIntelligence}
+                  onChange={(e) => setAiFeatures({ ...aiFeatures, businessIntelligence: e.target.checked })}
+                  style={{ marginRight: '12px', width: '18px', height: '18px' }}
+                />
+                <label htmlFor="enableBusinessIntelligence" style={{ color: '#d1d5db', fontWeight: '500', fontSize: '16px' }}>
+                  Enable Business Intelligence (+$30.00/month)
+                </label>
+              </div>
+              <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0 }}>
+                Get insights and analytics about visitor behavior and business opportunities
+              </p>
+            </div>
+
+            {/* AI Personality */}
+            {(aiFeatures.chatbot || aiFeatures.autoResponder) && (
+              <div style={{
+                marginBottom: '24px',
+                padding: '20px',
+                backgroundColor: '#1f2937',
+                borderRadius: '8px',
+                border: '1px solid #374151'
+              }}>
+                <h4 style={{ fontSize: '18px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>AI Personality</h4>
+                
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>AI Personality Type</label>
+                  <select
+                    value={aiFeatures.personality}
+                    onChange={(e) => setAiFeatures({ ...aiFeatures, personality: e.target.value as 'professional' | 'friendly' | 'casual' | 'technical' })}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <option value="professional">Professional</option>
+                    <option value="friendly">Friendly</option>
+                    <option value="casual">Casual</option>
+                    <option value="technical">Technical</option>
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Custom Prompts (Optional)</label>
+                  <textarea
+                    value={aiFeatures.customPrompts}
+                    onChange={(e) => setAiFeatures({ ...aiFeatures, customPrompts: e.target.value })}
+                    placeholder="Add specific instructions for how the AI should behave or respond..."
+                    rows={4}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#374151',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      color: '#d1d5db',
+                      fontSize: '14px',
+                      resize: 'vertical' as const
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px' }}>
+              <button
+                style={secondaryButtonStyle}
+                onClick={handlePrevious}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#4b5563'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#374151'}
+              >
+                Previous
+              </button>
+              <button
+                style={primaryButtonStyle}
+                onClick={handleNext}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 7: Building Customization & Review */}
+        {step === 7 && (
           <div>
             <h3 style={{ fontSize: '1.25em', marginBottom: '20px', textAlign: 'center', color: '#e5e7eb' }}>Building Customization & Review</h3>
 
@@ -685,172 +1620,7 @@ export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreato
               />
             </div>
 
-            {/* Advertising Configuration */}
-            <div style={{
-              marginBottom: '24px',
-              padding: '20px',
-              backgroundColor: '#1f2937',
-              borderRadius: '8px',
-              border: '1px solid #374151'
-            }}>
-              <h4 style={{ fontSize: '18px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Company Advertising (Optional)</h4>
-              
-              {/* Enable Advertising Toggle */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={advertising.enabled}
-                    onChange={(e) => setAdvertising({ ...advertising, enabled: e.target.checked })}
-                    style={{ marginRight: '8px' }}
-                  />
-                  <span style={{ color: '#d1d5db', fontWeight: '500' }}>Enable company advertising on this building</span>
-                </label>
-              </div>
 
-              {advertising.enabled && (
-                <>
-                  {/* Company Name */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Company Name *</label>
-                    <input
-                      type="text"
-                      value={advertising.companyName}
-                      onChange={(e) => setAdvertising({ ...advertising, companyName: e.target.value })}
-                      placeholder="Enter your company name"
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        backgroundColor: '#374151',
-                        border: '1px solid #4b5563',
-                        borderRadius: '6px',
-                        color: '#d1d5db',
-                        fontSize: '14px'
-                      }}
-                    />
-                  </div>
-
-                  {/* Website */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Website</label>
-                    <input
-                      type="url"
-                      value={advertising.website}
-                      onChange={(e) => setAdvertising({ ...advertising, website: e.target.value })}
-                      placeholder="https://yourcompany.com"
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        backgroundColor: '#374151',
-                        border: '1px solid #4b5563',
-                        borderRadius: '6px',
-                        color: '#d1d5db',
-                        fontSize: '14px'
-                      }}
-                    />
-                  </div>
-
-                  {/* Logo Upload */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Company Logo (SVG format)</label>
-                    <input
-                      type="file"
-                      accept=".svg,image/svg+xml"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              setAdvertising({
-                                ...advertising,
-                                logoFile: file,
-                                logoUrl: event.target?.result as string
-                              });
-                            };
-                            reader.readAsDataURL(file);
-                          } else {
-                            alert('Please upload an SVG file only.');
-                          }
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        backgroundColor: '#374151',
-                        border: '1px solid #4b5563',
-                        borderRadius: '6px',
-                        color: '#d1d5db',
-                        fontSize: '14px'
-                      }}
-                    />
-                    {advertising.logoFile && (
-                      <div style={{ marginTop: '8px', color: '#10b981', fontSize: '14px' }}>
-                        ✓ {advertising.logoFile.name} uploaded
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Description */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Company Description</label>
-                    <textarea
-                      value={advertising.description}
-                      onChange={(e) => setAdvertising({ ...advertising, description: e.target.value })}
-                      placeholder="Describe your company or products"
-                      rows={3}
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        backgroundColor: '#374151',
-                        border: '1px solid #4b5563',
-                        borderRadius: '6px',
-                        color: '#d1d5db',
-                        fontSize: '14px',
-                        resize: 'vertical' as const
-                      }}
-                    />
-                  </div>
-
-                  {/* Contact Email */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: '#d1d5db', fontWeight: '500' }}>Contact Email</label>
-                    <input
-                      type="email"
-                      value={advertising.contactEmail}
-                      onChange={(e) => setAdvertising({ ...advertising, contactEmail: e.target.value })}
-                      placeholder="contact@yourcompany.com"
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        backgroundColor: '#374151',
-                        border: '1px solid #4b5563',
-                        borderRadius: '6px',
-                        color: '#d1d5db',
-                        fontSize: '14px'
-                      }}
-                    />
-                  </div>
-
-                  {/* Logo Playground */}
-                  <div style={{ marginTop: '24px' }}>
-                    <h4 style={{ fontSize: '16px', marginBottom: '16px', color: '#3b82f6', fontWeight: 'bold' }}>Bubble Message Customization</h4>
-                    <LogoPlayground
-                      logoSvg={advertising.logoSvg}
-                      onLogoUpload={(svgContent) => {
-                        setAdvertising({ ...advertising, logoSvg: svgContent });
-                      }}
-                      companyName={advertising.companyName}
-                      website={advertising.website}
-                      onWebsiteChange={(website) => {
-                        setAdvertising({ ...advertising, website });
-                      }}
-                      buildingType={mainBuilding.type}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
 
             {/* Plot Summary */}
             <div style={{
@@ -889,9 +1659,43 @@ export function PlotCreator({ initialPosition, onComplete, onClose }: PlotCreato
                     </>
                   )}
 
-                  <div style={{ color: '#3b82f6', fontWeight: 'bold', borderTop: '1px solid #374151', paddingTop: '8px' }}>Total:</div>
+                  {mailbox.enabled && (
+                    <>
+                      <div style={{ color: '#9ca3af' }}>Mailbox ({mailbox.type}):</div>
+                      <div style={{ color: '#d1d5db' }}>
+                        ${mailbox.type === 'basic' ? '5.00' : mailbox.type === 'business' ? '15.00' : '30.00'}/month
+                      </div>
+                    </>
+                  )}
+
+                  {(aiFeatures.chatbot || aiFeatures.autoResponder || aiFeatures.leadCapture || aiFeatures.businessIntelligence) && (
+                    <>
+                      <div style={{ color: '#9ca3af' }}>AI Features:</div>
+                      <div style={{ color: '#d1d5db' }}>
+                        ${(
+                          (aiFeatures.chatbot ? 15 : 0) +
+                          (aiFeatures.autoResponder ? 10 : 0) +
+                          (aiFeatures.leadCapture ? 20 : 0) +
+                          (aiFeatures.businessIntelligence ? 30 : 0)
+                        ).toFixed(2)}/month
+                      </div>
+                    </>
+                  )}
+
+                  <div style={{ color: '#3b82f6', fontWeight: 'bold', borderTop: '1px solid #374151', paddingTop: '8px' }}>One-time Cost:</div>
                   <div style={{ color: '#3b82f6', fontWeight: 'bold', borderTop: '1px solid #374151', paddingTop: '8px' }}>
                     ${(totalPrice / 100).toFixed(2)}
+                  </div>
+
+                  <div style={{ color: '#10b981', fontWeight: 'bold' }}>Monthly Cost:</div>
+                  <div style={{ color: '#10b981', fontWeight: 'bold' }}>
+                    ${(
+                      (mailbox.enabled ? (mailbox.type === 'basic' ? 5 : mailbox.type === 'business' ? 15 : 30) : 0) +
+                      (aiFeatures.chatbot ? 15 : 0) +
+                      (aiFeatures.autoResponder ? 10 : 0) +
+                      (aiFeatures.leadCapture ? 20 : 0) +
+                      (aiFeatures.businessIntelligence ? 30 : 0)
+                    ).toFixed(2)}/month
                   </div>
                 </div>
               </div>

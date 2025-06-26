@@ -268,14 +268,11 @@ export function BannerStyleSelector({
               height={3}
               color="#4A90E2"
               rotation={0}
-              advertising={{
-                enabled: true,
+              companyInfo={{
                 companyName: companyName || 'Your Company',
-                bannerStyle: selectedStyle,
-                bannerPosition: selectedPosition,
-                bannerColor: selectedBannerColor,
-                textColor: selectedTextColor,
-                animationStyle: selectedAnimation
+                website: '',
+                logoSvg: '',
+                shortDescription: 'Banner preview building'
               }}
             />
             

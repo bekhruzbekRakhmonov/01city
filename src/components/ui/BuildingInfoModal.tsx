@@ -8,43 +8,77 @@ interface BuildingInfoTooltipProps {
   buildingInfo: {
     type: string;
     height: number;
-    advertising?: {
-      enabled: boolean;
-      companyName?: string;
-      website?: string;
-      description?: string;
-      contactEmail?: string;
-      logoSvg?: string;
-  logoPosition?: {
-    x: number;
-    y: number;
-    z: number;
-    scale: number;
-    rotation: number;
-    face: string;
-  };
+    address?: { // Added address field
+      street: string;
+      district: string;
+      cityCode: string;
+      coordinates: {
+        lat: number;
+        lng: number;
+      };
+    };
+    companyInfo?: {
+      companyName: string;
+      website: string;
+      logoSvg: string;
+      shortDescription: string;
+      uploadedAt?: number; // Made optional
+    };
+    userId?: string; // Added userId to determine ownership
+    // Add mailbox related info for the button
+    plotId?: string; // Or Id<'plots'> if you have it typed
+    mailbox?: {
+      enabled?: boolean;
+      address?: string;
     };
   } | null;
+  onOpenMailbox?: (plotId: string, plotOwnerId: string | undefined, plotMailboxAddress?: string) => void; // Callback to open mailbox
+  currentUserId?: string; // To determine if current user is owner
 }
 
-export function BuildingInfoModal({ isOpen, onClose, buildingInfo }: BuildingInfoTooltipProps) {
+export function BuildingInfoModal({
+  isOpen,
+  onClose,
+  buildingInfo,
+  onOpenMailbox,
+  currentUserId
+}: BuildingInfoTooltipProps) {
   if (!isOpen || !buildingInfo) return null;
 
-  const { advertising } = buildingInfo;
-  const hasAdvertising = advertising?.enabled && advertising?.companyName;
+  const { companyInfo, address, plotId, mailbox } = buildingInfo; // Destructure address, plotId, mailbox
+  const hasCompanyInfo = companyInfo?.companyName;
+  const hasAddress = address?.street && address?.cityCode;
+  const isOwner = !!(buildingInfo.userId && currentUserId && buildingInfo.userId === currentUserId);
+  const canOpenMailbox = isOwner && mailbox?.enabled && onOpenMailbox && plotId;
 
   const handleWebsiteClick = () => {
-    if (advertising?.website) {
-      const url = advertising.website.startsWith('http') 
-        ? advertising.website 
-        : `https://${advertising.website}`;
+    if (companyInfo?.website) {
+      const url = companyInfo.website.startsWith('http') 
+        ? companyInfo.website 
+        : `https://${companyInfo.website}`;
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
-  const handleEmailClick = () => {
-    if (advertising?.contactEmail) {
-      window.location.href = `mailto:${advertising.contactEmail}`;
+  // Format address for display
+  const formatAddress = (addr: { street: string; district: string; cityCode: string; coordinates: { lat: number; lng: number } } | undefined) => {
+    if (!addr) return 'No address available';
+    return `${addr.street}, ${addr.district}, ${addr.cityCode}`;
+  };
+
+  // Copy address to clipboard
+  const copyAddressToClipboard = () => {
+    if (buildingInfo.address) {
+      navigator.clipboard.writeText(formatAddress(buildingInfo.address));
+      // You might want to add a toast notification here
+    }
+  };
+
+  // Copy mailbox address to clipboard
+  const copyMailboxToClipboard = () => {
+    if (buildingInfo.mailbox?.address) {
+      navigator.clipboard.writeText(buildingInfo.mailbox.address);
+      // You might want to add a toast notification here
     }
   };
 
@@ -59,12 +93,13 @@ export function BuildingInfoModal({ isOpen, onClose, buildingInfo }: BuildingInf
         borderRadius: '8px',
         padding: '16px',
         color: 'white',
-        minWidth: '250px',
+        minWidth: '280px',
         maxWidth: '350px',
         boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5)',
         border: '1px solid #374151',
         zIndex: 1000,
-        pointerEvents: 'auto'
+        pointerEvents: 'auto',
+        fontFamily: 'Inter, system-ui, sans-serif'
       }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -106,23 +141,113 @@ export function BuildingInfoModal({ isOpen, onClose, buildingInfo }: BuildingInf
       </button>
 
         {/* Building Information */}
-        <div style={{ marginBottom: hasAdvertising ? '16px' : '0' }}>
-          <h3 style={{ 
-            margin: '0 0 12px 0', 
-            fontSize: '16px', 
-            fontWeight: 'bold',
-            color: '#f9fafb'
-          }}>
-            {buildingInfo.type.charAt(0).toUpperCase() + buildingInfo.type.slice(1)}
-          </h3>
-          
-          <div style={{ fontSize: '13px', color: '#d1d5db' }}>
-            Height: <span style={{ color: '#f9fafb' }}>{buildingInfo.height}m</span>
+        <div style={{ marginBottom: hasCompanyInfo ? '16px' : '0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+            <h3 style={{ 
+              margin: 0, 
+              fontSize: '16px', 
+              fontWeight: 'bold',
+              color: '#f9fafb',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span style={{ fontSize: '1.2em', marginRight: '4px' }}>🏢</span>
+              {buildingInfo.type.charAt(0).toUpperCase() + buildingInfo.type.slice(1)}
+            </h3>
+            <div style={{ fontSize: '13px', color: '#9ca3af', display: 'flex', gap: '4px' }}>
+              <span>ID: {buildingInfo.plotId?.slice(0, 4)}...{buildingInfo.plotId?.slice(-4)}</span>
+            </div>
           </div>
+          
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'auto 1fr',
+            gap: '4px 8px',
+            fontSize: '13px',
+            color: '#d1d5db',
+            marginBottom: '8px'
+          }}>
+            <span style={{ color: '#9ca3af' }}>Height:</span>
+            <span>{buildingInfo.height}m</span>
+            
+            {buildingInfo.address?.coordinates && (
+              <>
+                <span style={{ color: '#9ca3af' }}>Location:</span>
+                <span>
+                  {buildingInfo.address.coordinates.lat.toFixed(4)}, {buildingInfo.address.coordinates.lng.toFixed(4)}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Address Information */}
+          {hasAddress && (
+            <div style={{ 
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              margin: '8px 0',
+              borderLeft: '3px solid #3b82f6',
+              position: 'relative'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '4px'
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: '#9ca3af',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  <span>📍</span>
+                  <span>Address</span>
+                </div>
+                <button 
+                  onClick={copyAddressToClipboard}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#9ca3af',
+                    cursor: 'pointer',
+                    padding: '2px 4px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.color = '#ffffff'}
+                  onMouseOut={(e) => e.currentTarget.style.color = '#9ca3af'}
+                >
+                  <span>Copy</span>
+                  <span>📋</span>
+                </button>
+              </div>
+              <div style={{ 
+                fontSize: '13px',
+                lineHeight: '1.4',
+                wordBreak: 'break-word'
+              }}>
+                <div style={{ fontWeight: 500 }}>{address.street}</div>
+                <div style={{ color: '#9ca3af', fontSize: '12px' }}>
+                  {address.district}, {address.cityCode}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Advertising Information */}
-        {hasAdvertising && (
+        {/* Company Information */}
+        {hasCompanyInfo && (
           <div style={{ 
             borderTop: '1px solid #374151',
             paddingTop: '12px'
@@ -133,17 +258,17 @@ export function BuildingInfoModal({ isOpen, onClose, buildingInfo }: BuildingInf
               color: '#10b981',
               marginBottom: '8px'
             }}>
-              {advertising.companyName}
+              {companyInfo.companyName}
             </div>
             
-            {advertising.description && (
+            {companyInfo.shortDescription && (
               <p style={{ 
                 margin: '0 0 12px 0', 
                 color: '#d1d5db',
                 fontSize: '12px',
                 lineHeight: '1.4'
               }}>
-                {advertising.description}
+                {companyInfo.shortDescription}
               </p>
             )}
             
@@ -153,32 +278,86 @@ export function BuildingInfoModal({ isOpen, onClose, buildingInfo }: BuildingInf
               gap: '8px',
               flexWrap: 'wrap'
             }}>
-              {advertising.website && (
+              {companyInfo.website && (
                 <button
                   onClick={handleWebsiteClick}
                   style={{
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    color: '#3b82f6',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    borderRadius: '6px',
                     padding: '6px 12px',
                     fontSize: '12px',
                     fontWeight: '500',
                     cursor: 'pointer',
-                    transition: 'background-color 0.2s'
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
                   }}
-                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+                  onMouseOver={(e) => {
+                    const target = e.currentTarget as HTMLElement;
+                    target.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+                    target.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseOut={(e) => {
+                    const target = e.currentTarget as HTMLElement;
+                    target.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                    target.style.transform = 'translateY(0)';
+                  }}
                 >
-                  Website
+                  <span>🌐</span>
+                  <span>Website</span>
                 </button>
               )}
               
-              {advertising.contactEmail && (
+              {/* Mailbox Button */}
+              {buildingInfo.mailbox?.enabled && (
                 <button
-                  onClick={handleEmailClick}
+                  onClick={() => {
+                    if (onOpenMailbox && buildingInfo.plotId) {
+                      onOpenMailbox(
+                        buildingInfo.plotId,
+                        buildingInfo.userId,
+                        buildingInfo.mailbox?.address
+                      );
+                    }
+                  }}
                   style={{
-                    backgroundColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    color: '#10b981',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  onMouseOver={(e) => {
+                    const target = e.currentTarget as HTMLElement;
+                    target.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+                    target.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseOut={(e) => {
+                    const target = e.currentTarget as HTMLElement;
+                    target.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                    target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <span>📬</span>
+                  <span>Mailbox</span>
+                </button>
+              )}
+              
+              {canOpenMailbox && (
+                <button
+                  onClick={() => onOpenMailbox(plotId!, buildingInfo.userId!, mailbox?.address)}
+                  style={{
+                    backgroundColor: '#10b981', // Green color for mailbox
                     color: 'white',
                     border: 'none',
                     borderRadius: '4px',
@@ -191,7 +370,7 @@ export function BuildingInfoModal({ isOpen, onClose, buildingInfo }: BuildingInf
                   onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#059669'}
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
                 >
-                  Contact
+                  View Mailbox
                 </button>
               )}
             </div>

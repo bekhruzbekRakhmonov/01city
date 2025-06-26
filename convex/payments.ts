@@ -23,7 +23,7 @@ export const createPlotPaymentIntent = mutation({
       .first();
     
     const userFreeSquaresUsed = user?.freeSquaresUsed || 0;
-    const userFreeSquaresLimit = (user?.freeSquaresLimit || 25) + (user?.subscriptionTier === "basic" ? 50 : user?.subscriptionTier === "premium" ? 100 : 0);
+    const userFreeSquaresLimit = (user?.freeSquaresLimit || 25) + (user?.subscriptionTier === "business" ? 50 : user?.subscriptionTier === "corporate" ? 100 : user?.subscriptionTier === "enterprise" ? 200 : 0);
     
     // Calculate pricing
     const totalSquares = args.plotSize.width * args.plotSize.depth;
@@ -36,10 +36,12 @@ export const createPlotPaymentIntent = mutation({
     // Calculate custom model fee with subscription discounts
     let customModelFee = 0;
     if (args.hasCustomModel) {
-      if (user?.subscriptionTier === "premium") {
-        customModelFee = 0; // Free for premium
-      } else if (user?.subscriptionTier === "basic") {
-        customModelFee = 1000; // 50% off for basic ($10)
+      if (user?.subscriptionTier === "enterprise") {
+        customModelFee = 0; // Free for enterprise
+      } else if (user?.subscriptionTier === "corporate") {
+        customModelFee = 500; // 75% off for corporate ($5)
+      } else if (user?.subscriptionTier === "business") {
+        customModelFee = 1000; // 50% off for business ($10)
       } else {
         customModelFee = 2000; // Full price ($20)
       }

@@ -5,7 +5,6 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import { Building } from '../3d/Building';
 import { BuildingModel } from '../3d/BuildingModel';
-import * as THREE from "three";
 
 interface LogoPlaygroundProps {
   logoSvg?: string;
@@ -171,11 +170,11 @@ export function LogoPlayground({
                 height={3}
                 color="#4A90E2"
                 rotation={0}
-                advertising={{
-                  enabled: false, // Disable 3D advertising since we're using 2D bubble
+                companyInfo={{
                   companyName: companyName || 'Your Company',
-                  website: website,
-                  logoSvg: logoSvg
+                  website: website || '',
+                  logoSvg: logoSvg || '',
+                  shortDescription: 'Preview building'
                 }}
               />
             )}
