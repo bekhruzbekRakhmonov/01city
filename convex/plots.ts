@@ -1,6 +1,5 @@
-import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { v } from "convex/values";
 
 // Pricing constants
 const FREE_SQUARES_LIMIT = 25; // 5x5 plot

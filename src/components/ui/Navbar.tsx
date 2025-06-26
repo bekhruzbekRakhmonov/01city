@@ -7,7 +7,7 @@ import { useQuery } from 'convex/react';
 import { EnvelopeIcon, CreditCardIcon, ChartBarIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { MailboxModal } from './MailboxModal';
 import { SubscriptionModal } from './SubscriptionModal';
-import { Id } from '../../../convex/_generated/dataModel';
+// Id import removed as it's not used
 import { api } from '../../../convex/_generated/api';
 
 export function Navbar() {
@@ -26,6 +26,15 @@ export function Navbar() {
     api.subscriptions.getUsageStats,
     user?.id ? { userId: user.id } : 'skip'
   );
+  
+  // Get user's plots to find mailbox-enabled plots
+  const userPlots = useQuery(
+    api.plots.getByUserId,
+    user?.id ? { userId: user.id } : 'skip'
+  );
+  
+  // Find the first plot with mailbox enabled for the navbar mailbox
+  const mailboxPlot = userPlots?.find(plot => plot.mailbox?.enabled);
   
   // Get subscription tier display info
   const getSubscriptionDisplay = () => {
@@ -99,7 +108,7 @@ export function Navbar() {
                     </div>
                     {usageStats && (
                       <div className="text-gray-500 dark:text-gray-400">
-                        {usageStats.plotsUsed}/{usageStats.plotsLimit === -1 ? '∞' : usageStats.plotsLimit} plots
+                        {usageStats.plotsCount} plots
                       </div>
                     )}
                   </div>
@@ -118,9 +127,19 @@ export function Navbar() {
                 {/* Mailbox Button */}
                 <div className="relative">
                   <button 
-                    onClick={() => setShowMailboxModal(true)}
-                    className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white focus:outline-none"
-                    title="Mailbox"
+                    onClick={() => {
+                      if (mailboxPlot) {
+                        setShowMailboxModal(true);
+                      } else {
+                        alert('No mailbox-enabled plots found. Create a plot with mailbox enabled to use this feature.');
+                      }
+                    }}
+                    className={`p-2 focus:outline-none ${
+                      mailboxPlot 
+                        ? 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white' 
+                        : 'text-gray-400 cursor-not-allowed'
+                    }`}
+                    title={mailboxPlot ? "Mailbox" : "No mailbox-enabled plots"}
                     aria-label="Open mailbox"
                   >
                     <EnvelopeIcon className="h-5 w-5" />
@@ -136,16 +155,19 @@ export function Navbar() {
                   <UserButton afterSignOutUrl="/" />
                 </div>
                 {/* Modals */}
-                <MailboxModal
-                  isOpen={showMailboxModal}
-                  onClose={() => setShowMailboxModal(false)}
-                  plotId={'' as Id<'plots'>}
-                  plotOwnerId={user.id}
-                  onMessageRead={() => {
-                    // Update unread count when messages are read
-                    setUnreadCount(prev => Math.max(0, prev - 1));
-                  }}
-                />
+                {mailboxPlot && (
+                  <MailboxModal
+                    isOpen={showMailboxModal}
+                    onClose={() => setShowMailboxModal(false)}
+                    plotId={mailboxPlot._id}
+                    plotOwnerId={user.id}
+                    plotMailboxAddress={mailboxPlot.mailbox?.address}
+                    onMessageRead={() => {
+                      // Update unread count when messages are read
+                      setUnreadCount(prev => Math.max(0, prev - 1));
+                    }}
+                  />
+                )}
                 
                 <SubscriptionModal
                   isOpen={showSubscriptionModal}

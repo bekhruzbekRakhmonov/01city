@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { useUser } from '@clerk/nextjs';
 import { api } from '../../../convex/_generated/api';
@@ -135,11 +135,11 @@ export function MailboxModal({
 
   return (
     <div 
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4"
       onClick={handleClose}
     >
       <div 
-        className="bg-gray-800 text-white rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+        className="bg-gray-800 text-white rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden relative z-[10000]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

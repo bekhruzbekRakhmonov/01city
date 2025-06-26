@@ -4,7 +4,7 @@ import { query, mutation } from "./_generated/server";
 // Get pricing information for the frontend
 export const getPricingInfo = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async () => {
     return {
       freeSquaresLimit: 25,
       pricePerSquareCents: 100, // $1 per square
@@ -220,25 +220,41 @@ export const purchasePlot = mutation({
       website: v.optional(v.string()),
       logoUrl: v.optional(v.string()),
       description: v.string(),
-      contact: v.object({
+      contact: v.optional(v.object({
         email: v.string(),
         phone: v.optional(v.string()),
-      }),
+      })),
+      contactEmail: v.optional(v.string()), // Added to support legacy format
       industry: v.string(),
-      services: v.string(),
+      services: v.union(v.string(), v.array(v.string())),
       socialMedia: v.object({
         linkedin: v.optional(v.string()),
         twitter: v.optional(v.string()),
+        facebook: v.optional(v.string()),
+        instagram: v.optional(v.string()),
       }),
-      businessHours: v.string(),
+      businessHours: v.union(
+        v.string(),
+        v.object({
+          schedule: v.array(v.object({
+            day: v.string(),
+            open: v.string(),
+            close: v.string(),
+            closed: v.boolean(),
+          })),
+          timezone: v.string(),
+        })
+      ),
     }),
     aiFeatures: v.object({
-      chatbot: v.boolean(),
+      chatbot: v.optional(v.boolean()),
+      chatbotEnabled: v.optional(v.boolean()),
       autoResponder: v.boolean(),
       leadCapture: v.boolean(),
       businessIntelligence: v.boolean(),
       personality: v.optional(v.string()),
-      customPrompts: v.optional(v.string()),
+      aiPersonality: v.optional(v.string()),
+      customPrompts: v.optional(v.union(v.string(), v.array(v.string()))),
     }),
     metadata: v.optional(v.any()),
   },
@@ -391,19 +407,19 @@ export const purchasePlot = mutation({
         website: args.advertising.website,
         logoUrl: args.advertising.logoUrl,
         description: args.advertising.description,
-        contact: args.advertising.contact,
+        contact: args.advertising.contact || (args.advertising.contactEmail ? { email: args.advertising.contactEmail } : { email: "" }),
         industry: args.advertising.industry,
-        services: args.advertising.services,
+        services: Array.isArray(args.advertising.services) ? args.advertising.services.join(', ') : args.advertising.services,
         socialMedia: args.advertising.socialMedia,
         businessHours: args.advertising.businessHours,
       },
       aiFeatures: {
-        chatbot: args.aiFeatures.chatbot,
+        chatbot: args.aiFeatures.chatbot ?? args.aiFeatures.chatbotEnabled ?? false,
         autoResponder: args.aiFeatures.autoResponder,
         leadCapture: args.aiFeatures.leadCapture,
         businessIntelligence: args.aiFeatures.businessIntelligence,
-        personality: args.aiFeatures.personality || "professional",
-        customPrompts: args.aiFeatures.customPrompts || "",
+        personality: args.aiFeatures.personality || args.aiFeatures.aiPersonality || "professional",
+        customPrompts: Array.isArray(args.aiFeatures.customPrompts) ? args.aiFeatures.customPrompts.join('\n') : args.aiFeatures.customPrompts || "",
       },
       pricing: {
         totalCost,

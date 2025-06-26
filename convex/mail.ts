@@ -130,21 +130,24 @@ export const getMessagesForPlot = query({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("User must be authenticated to retrieve messages.");
+      // Return empty results instead of throwing an error
+      return { page: [], continueCursor: null };
     }
 
     const plot = await ctx.db.get(args.plotId);
     if (!plot) {
-      throw new Error("Plot not found.");
+      // Return empty results instead of throwing an error
+      return { page: [], continueCursor: null };
     }
 
     if (plot.userId !== identity.subject) {
-      throw new Error("User not authorized to retrieve messages for this plot.");
+      // Return empty results instead of throwing an error
+      return { page: [], continueCursor: null };
     }
     
     if (!plot.mailbox?.enabled) {
-        // Or return empty results if preferred
-        throw new Error(`Mailbox for plot "${plot.address?.street || plot._id.toString()}" is disabled.`);
+        // Return empty results instead of throwing an error
+        return { page: [], continueCursor: null };
     }
 
     return await ctx.db
@@ -164,17 +167,19 @@ export const getUnreadMessageCount = query({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      // Or return 0 if preferred for unauthenticated users
-      throw new Error("User must be authenticated to get unread message count.");
+      // Return 0 for unauthenticated users
+      return 0;
     }
 
     const plot = await ctx.db.get(args.plotId);
     if (!plot) {
-      throw new Error("Plot not found.");
+      // Return 0 if plot not found
+      return 0;
     }
 
     if (plot.userId !== identity.subject) {
-      throw new Error("User not authorized to get unread count for this plot.");
+      // Return 0 if user is not authorized
+      return 0;
     }
 
     if (!plot.mailbox?.enabled) {

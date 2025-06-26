@@ -223,8 +223,21 @@ export default defineSchema({
       socialMedia: v.object({
         linkedin: v.optional(v.string()),
         twitter: v.optional(v.string()),
+        facebook: v.optional(v.string()),
+        instagram: v.optional(v.string()),
       }),
-      businessHours: v.string(),
+      businessHours: v.union(
+        v.string(),
+        v.object({
+          schedule: v.array(v.object({
+            day: v.string(),
+            open: v.string(),
+            close: v.string(),
+            closed: v.boolean(),
+          })),
+          timezone: v.string(),
+        })
+      ),
     })),
 
     // AI-powered features
