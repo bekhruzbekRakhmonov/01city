@@ -15,9 +15,10 @@ interface CityProps {
   onGovernmentBuildingClick?: () => void;
   showLandSelector?: boolean;
   onLandSelectorClose?: () => void;
+  onShowPlotInfo?: (plotData: any) => void;
 }
 
-export function City({ onPlotSelect, onGovernmentBuildingClick, showLandSelector = false, onLandSelectorClose }: CityProps) {
+export function City({ onPlotSelect, onGovernmentBuildingClick, showLandSelector = false, onLandSelectorClose, onShowPlotInfo }: CityProps) {
   // Fetch all plots from Convex
   const plots = useQuery(api.plots.getAll) || [];
   const [isChoosingPlot, setIsChoosingPlot] = useState(false);
@@ -50,7 +51,7 @@ export function City({ onPlotSelect, onGovernmentBuildingClick, showLandSelector
       
       {/* Existing Plots */}
       {plots.map((plot) => (
-        <Plot key={plot._id} plot={plot} />
+        <Plot key={plot._id} plot={plot} onShowInfo={onShowPlotInfo} />
       ))}
 
       {/* Choose Plot Button - Only show to signed-in users when land selector is not controlled externally */}

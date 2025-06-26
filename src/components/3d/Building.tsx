@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { useRef, useState, useMemo, useEffect } from 'react';
-import { Box, RoundedBox, Cylinder, Text, Sphere, Html } from '@react-three/drei';
-import { useFrame, useThree } from '@react-three/fiber';
+import { Box, RoundedBox, Cylinder, Text, Sphere } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
 import { BuildingModel } from './BuildingModel';
-import { PlotInfo } from '../ui/PlotInfo';
+// Removed PlotInfo import - now handled by Plot component
 
 // Define types for building props
 interface BuildingProps {
@@ -18,6 +18,10 @@ interface BuildingProps {
     logoColor?: string;
     windowPattern?: string;
     signText?: string;
+    hasGarden?: boolean;
+    signColor?: string;
+    isOpen?: boolean;
+    awningColor?: string;
   };
   selectedModel?: {
     id: string;
@@ -53,8 +57,8 @@ export function Building({
   const buildingRef = useRef<THREE.Object3D>(null);
   const [hovered, setHovered] = useState(false);
   const [clicked, setClicked] = useState(false);
-  const [showInfoModal, setShowInfoModal] = useState(false);
-  const { camera } = useThree();
+  // Removed showInfoModal state - modal now handled by Plot component
+  // Removed unused camera variable
   
   // Enhanced texture generation with more detail
   const textureProps = useMemo(() => {
@@ -230,7 +234,40 @@ export function Building({
     };
   }, [color, type, height, customizations]);
   
-
+  // Create roof texture function
+  const createRoofTexture = (roofColor: string) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    if (ctx) {
+      ctx.fillStyle = roofColor;
+      ctx.fillRect(0, 0, 512, 512);
+      
+      // Draw shingle pattern
+      const shingleHeight = 512 / 20;
+      const shingleWidth = 512 / 10;
+      
+      for (let y = 0; y < 512; y += shingleHeight) {
+        const offset = (Math.floor(y / shingleHeight) % 2) * (shingleWidth / 2);
+        
+        for (let x = 0; x < 512; x += shingleWidth) {
+          ctx.fillStyle = `rgba(0, 0, 0, ${Math.random() * 0.2 + 0.1})`;
+          ctx.fillRect(x + offset, y, shingleWidth - 2, shingleHeight - 1);
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + offset, y, shingleWidth - 2, shingleHeight - 1);
+        }
+      }
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(2, 2);
+    
+    return texture;
+  };
 
   
   // Hover and click effects
@@ -313,29 +350,27 @@ export function Building({
   
   const dimensions = getBuildingDimensions();
   
-  // Create SVG texture for logo
-  const svgTexture = useMemo(() => {
-    if (!companyInfo?.logoSvg) return null;
-    
-    // Create a blob URL from SVG content
-    const svgBlob = new Blob([companyInfo.logoSvg], { type: 'image/svg+xml' });
-    const svgUrl = URL.createObjectURL(svgBlob);
-    
-    // Create texture from SVG
-    const loader = new THREE.TextureLoader();
-    const texture = loader.load(svgUrl);
-    texture.flipY = false;
-    
-    return texture;
-  }, [companyInfo?.logoSvg]);
+  // Create SVG texture for logo - commented out until used
+  // const svgTexture = useMemo(() => {
+  //   if (!companyInfo?.logoSvg) return null;
+  //   
+  //   // Create a blob URL from SVG content
+  //   const svgBlob = new Blob([companyInfo.logoSvg], { type: 'image/svg+xml' });
+  //   const svgUrl = URL.createObjectURL(svgBlob);
+  //   
+  //   // Create texture from SVG
+  //   const loader = new THREE.TextureLoader();
+  //   const texture = loader.load(svgUrl);
+  //   texture.flipY = false;
+  //   
+  //   return texture;
+  // }, [companyInfo?.logoSvg]);}]}}}
 
 
   
   // Handle interaction
-  const handleClick = (e) => {
-    e.stopPropagation();
+  const handleClick = () => {
     setClicked(!clicked);
-    setShowInfoModal(true);
     
     if (onInteract && plotId) {
       onInteract(plotId);
@@ -566,39 +601,7 @@ export function Building({
                 color={customizations?.roofColor || "#8B4513"} 
                 roughness={0.9}
                 normalScale={new THREE.Vector2(0.5, 0.5)}
-                map={useMemo(() => {
-                  const canvas = document.createElement('canvas');
-                  canvas.width = 512;
-                  canvas.height = 512;
-                  const ctx = canvas.getContext('2d');
-                  
-                  if (ctx) {
-                    ctx.fillStyle = customizations?.roofColor || "#8B4513";
-                    ctx.fillRect(0, 0, 512, 512);
-                    
-                    // Draw shingle pattern
-                    const shingleHeight = 512 / 20;
-                    const shingleWidth = 512 / 10;
-                    
-                    for (let y = 0; y < 512; y += shingleHeight) {
-                      const offset = (Math.floor(y / shingleHeight) % 2) * (shingleWidth / 2);
-                      
-                      for (let x = 0; x < 512; x += shingleWidth) {
-                        ctx.fillStyle = `rgba(0, 0, 0, ${Math.random() * 0.2 + 0.1})`;
-                        ctx.fillRect(x + offset, y, shingleWidth - 2, shingleHeight - 1);
-                        ctx.strokeStyle = '#000000';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(x + offset, y, shingleWidth - 2, shingleHeight - 1);
-                      }
-                    }
-                  }
-                  
-                  const texture = new THREE.CanvasTexture(canvas);
-                  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-                  texture.repeat.set(2, 2);
-                  
-                  return texture;
-                }, [customizations?.roofColor])}
+map={createRoofTexture(customizations?.roofColor || "#8B4513")}
               />
             </mesh>
             
@@ -796,7 +799,7 @@ export function Building({
               <meshStandardMaterial 
                 map={textureProps.map}
                 normalMap={textureProps.normalMap}
-               ref={buildingRef} rotation={[0, rotation, 0]}  normalScale={textureProps.normalScale}
+                normalScale={textureProps.normalScale}
                 roughness={0.6} 
                 metalness={0.2}
               />
@@ -932,7 +935,7 @@ export function Building({
               receiveShadow
             >
               <meshStandardMaterial 
-           ref={buildingRef} rotation={[0, rotation, 0]}      map={textureProps.map}
+                map={textureProps.map}
                 normalMap={textureProps.normalMap}
                 normalScale={textureProps.normalScale}
                 roughness={0.5} 
@@ -1113,16 +1116,7 @@ export function Building({
         {renderBuilding()}
       </group>
       
-      {showInfoModal && (
-        <Html>
-          <PlotInfo
-            title={companyInfo?.companyName || selectedModel?.name || type}
-            description={companyInfo?.shortDescription || `${type.charAt(0).toUpperCase() + type.slice(1)} building with height of ${height}m`}
-            creatorInfo={companyInfo ? `${companyInfo.companyName} - ${companyInfo.shortDescription}` : undefined}
-            onClose={() => setShowInfoModal(false)}
-          />
-        </Html>
-      )}
+      {/* PlotInfo rendering removed - now handled by Plot component */}
     </>
   );
 }

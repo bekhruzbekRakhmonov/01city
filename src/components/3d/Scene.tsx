@@ -6,18 +6,39 @@ import { Suspense, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { City } from './City';
 import { GovernmentHelpModal } from '../ui/GovernmentHelpModal';
+import { PlotInfo } from '../ui/PlotInfo';
+import { useUser } from '@clerk/nextjs';
 
 interface SceneProps {
   onPlotSelect: (position: { x: number; z: number }) => void;
 }
 
 export function Scene({ onPlotSelect }: SceneProps) {
+  const { user } = useUser();
+  const currentUserId = user?.id;
   const [isGovernmentModalOpen, setIsGovernmentModalOpen] = useState(false);
   const [showLandSelector, setShowLandSelector] = useState(false);
+  const [selectedPlotData, setSelectedPlotData] = useState<any>(null);
+  const [showPlotInfo, setShowPlotInfo] = useState(false);
   
   const handleChoosePlot = () => {
     setIsGovernmentModalOpen(false);
     setShowLandSelector(true);
+  };
+
+  const handleShowPlotInfo = (plotData: any) => {
+    setSelectedPlotData(plotData);
+    setShowPlotInfo(true);
+  };
+
+  const handleClosePlotInfo = () => {
+    setShowPlotInfo(false);
+    setSelectedPlotData(null);
+  };
+
+  const handleOpenMailbox = (plotIdStr: string, ownerId: string | undefined, mailboxAddress?: string) => {
+    // This would be implemented to handle mailbox opening
+    console.log('Opening mailbox for plot:', plotIdStr);
   };
   return (
     <div className="w-full h-full absolute inset-0">
@@ -87,6 +108,7 @@ export function Scene({ onPlotSelect }: SceneProps) {
             onGovernmentBuildingClick={() => setIsGovernmentModalOpen(true)}
             showLandSelector={showLandSelector}
             onLandSelectorClose={() => setShowLandSelector(false)}
+            onShowPlotInfo={handleShowPlotInfo}
           />
           
           {/* Enhanced camera controls with zoom-to-cursor */}
@@ -117,6 +139,24 @@ export function Scene({ onPlotSelect }: SceneProps) {
         onClose={() => setIsGovernmentModalOpen(false)}
         onChoosePlot={handleChoosePlot}
       />
+
+      {selectedPlotData && (
+        <PlotInfo
+          isOpen={showPlotInfo}
+          onClose={handleClosePlotInfo}
+          buildingInfo={{
+            type: selectedPlotData.mainBuilding.type,
+            height: selectedPlotData.mainBuilding.height,
+            address: selectedPlotData.address,
+            companyInfo: selectedPlotData.companyInfo,
+            userId: selectedPlotData.userId,
+            plotId: selectedPlotData._id.toString(),
+            mailbox: selectedPlotData.mailbox
+          }}
+          currentUserId={currentUserId}
+          onOpenMailbox={handleOpenMailbox}
+        />
+      )}
     </div>
   );
 }
