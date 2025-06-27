@@ -7,11 +7,12 @@ import { CustomerAnalyticsDashboard } from '../../components/ui/CustomerAnalytic
 import { Card } from '../../components/ui/Card';
 import { useState } from 'react';
 import Link from 'next/link';
+import { Navbar } from '@/components/ui/Navbar';
 
 export default function MyAnalyticsPage() {
   const { user, isLoaded } = useUser();
   const [selectedPlotId, setSelectedPlotId] = useState<string | null>(null);
-  
+
   // Get user's plots
   const userPlots = useQuery(
     api.plots.getUserPlots,
@@ -32,8 +33,8 @@ export default function MyAnalyticsPage() {
         <Card className="p-8 max-w-md mx-auto text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Sign In Required</h1>
           <p className="text-gray-600 mb-6">You need to be signed in to view your analytics.</p>
-          <Link 
-            href="/sign-in" 
+          <Link
+            href="/sign-in"
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Sign In
@@ -50,10 +51,10 @@ export default function MyAnalyticsPage() {
           <Card className="p-8 text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">No Plots Found</h1>
             <p className="text-gray-600 mb-6">
-            You don&apos;t have any plots yet. Create your first plot to start tracking analytics.
-          </p>
-            <Link 
-              href="/build" 
+              You don&apos;t have any plots yet. Create your first plot to start tracking analytics.
+            </p>
+            <Link
+              href="/build"
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Create Your First Plot
@@ -64,12 +65,13 @@ export default function MyAnalyticsPage() {
     );
   }
 
-  const selectedPlot = selectedPlotId 
+  const selectedPlot = selectedPlotId
     ? userPlots.find(plot => plot._id === selectedPlotId)
     : userPlots[0];
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -91,17 +93,17 @@ export default function MyAnalyticsPage() {
               {userPlots.map((plot) => {
                 const isSelected = (selectedPlotId || userPlots[0]._id) === plot._id;
                 const totalSquares = plot.size.width * plot.size.depth;
-                const companyName = plot.name;
-                
+                const companyName = plot.companyName || plot.name;
+                const hasLogo = plot.logoUrl && plot.logoUrl.trim() !== '';
+
                 return (
                   <button
                     key={plot._id}
                     onClick={() => setSelectedPlotId(plot._id)}
-                    className={`group relative p-6 rounded-xl border-2 text-left transition-all duration-300 transform hover:scale-105 ${
-                      isSelected
-                        ? 'border-blue-500 bg-white shadow-lg ring-4 ring-blue-100'
-                        : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
-                    }`}
+                    className={`group relative p-6 rounded-xl border-2 text-left transition-all duration-300 transform hover:scale-105 ${isSelected
+                      ? 'border-blue-500 bg-white shadow-lg ring-4 ring-blue-100'
+                      : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
+                      }`}
                   >
                     {/* Selection Indicator */}
                     {isSelected && (
@@ -111,23 +113,47 @@ export default function MyAnalyticsPage() {
                         </svg>
                       </div>
                     )}
-                    
+
                     {/* Plot Header */}
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-900 text-lg mb-1 group-hover:text-blue-600 transition-colors">
-                          {companyName}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          Created {new Date(plot._creationTime).toLocaleDateString()}
-                        </p>
+                      <div className="flex items-start space-x-3 flex-1">
+                        {/* Company Logo */}
+                        <div className="flex-shrink-0">
+                          {hasLogo ? (
+                            <div
+                              className="w-20 h-20 bg-white rounded-lg flex-shrink-0 flex items-center justify-center border-2 border-gray-200"
+                              dangerouslySetInnerHTML={{ __html: plot.logoUrl }}
+                            />
+                          ) : (
+                            <div className={`w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg ${hasLogo ? 'hidden' : 'flex'}`}>
+                              {companyName.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          {/* Fallback Logo */}
+                          {/* <div className={`w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg ${hasLogo ? 'hidden' : 'flex'}`}>
+                            {companyName.charAt(0).toUpperCase()}
+                          </div> */}
+                        </div>
+
+                        {/* Company Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-gray-900 text-lg mb-1 group-hover:text-blue-600 transition-colors truncate">
+                            {companyName}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            Created {new Date(plot._creationTime).toLocaleDateString()}
+                          </p>
+                          {plot.website && (
+                            <p className="text-xs text-blue-600 truncate mt-1">
+                              {plot.website}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className={`w-3 h-3 rounded-full ${
-                        plot.paymentStatus === 'paid' ? 'bg-green-400' : 
-                        plot.paymentStatus === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'
-                      }`}></div>
+                      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${'bg-green-400' // Simplified since paymentStatus is not available
+                        }`}></div>
                     </div>
-                    
+
                     {/* Plot Stats */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
@@ -136,14 +162,14 @@ export default function MyAnalyticsPage() {
                           {plot.size.width}×{plot.size.depth} ({totalSquares} sq)
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">Status</span>
                         <span className="text-sm font-medium text-green-600">
                           Active
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">Size</span>
                         <span className="text-sm text-gray-600">
@@ -151,11 +177,10 @@ export default function MyAnalyticsPage() {
                         </span>
                       </div>
                     </div>
-                    
+
                     {/* Hover Effect */}
-                    <div className={`absolute inset-0 rounded-xl transition-opacity ${
-                      isSelected ? 'bg-blue-500 opacity-5' : 'bg-blue-500 opacity-0 group-hover:opacity-5'
-                    }`}></div>
+                    <div className={`absolute inset-0 rounded-xl transition-opacity ${isSelected ? 'bg-blue-500 opacity-5' : 'bg-blue-500 opacity-0 group-hover:opacity-5'
+                      }`}></div>
                   </button>
                 );
               })}
@@ -166,34 +191,6 @@ export default function MyAnalyticsPage() {
         {/* Analytics Dashboard */}
         {selectedPlot && (
           <div>
-            {/* Enhanced Current Plot Header */}
-            <Card className="p-6 mb-8 bg-gradient-to-r from-gray-50 to-blue-50 border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      {selectedPlot.name}
-                    </h2>
-                    <p className="text-gray-600 mt-1">
-                      {selectedPlot.size.width}×{selectedPlot.size.depth} plot • 
-                      General Business
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-gray-500">Last updated</div>
-                  <div className="text-sm font-medium text-gray-900">
-                    {new Date(selectedPlot._creationTime).toLocaleDateString()}
-                  </div>
-                </div>
-              </div>
-            </Card>
-
             {/* Analytics Dashboard Component */}
             <CustomerAnalyticsDashboard plotId={selectedPlot._id} />
           </div>

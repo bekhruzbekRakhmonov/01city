@@ -1024,11 +1024,14 @@ export const getUserPlots = query({
     
     return plots.map(plot => ({
       _id: plot._id,
-      name: `Plot ${plot.position.x},${plot.position.z}`,
+      name: plot.advertising?.companyName || `Plot ${plot.position.x},${plot.position.z}`,
       position: plot.position,
       size: plot.size,
       userId: plot.userId,
-      _creationTime: plot._creationTime
+      _creationTime: plot._creationTime,
+      companyName: plot.advertising?.companyName,
+      logoUrl: plot.advertising?.logoUrl,
+      website: plot.advertising?.website
     }));
   },
 });
