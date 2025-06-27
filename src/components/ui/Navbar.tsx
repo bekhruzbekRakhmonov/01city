@@ -89,6 +89,15 @@ export function Navbar() {
                   Dashboard
                 </Link>
               )}
+              {isSignedIn && (
+                <Link 
+                  href="/my-analytics"
+                  className="border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                >
+                  <ChartBarIcon className="h-4 w-4 mr-1" />
+                  My Analytics
+                </Link>
+              )}
               <Link 
                 href="/about"
                 className="border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"

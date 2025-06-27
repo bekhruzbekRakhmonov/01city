@@ -349,5 +349,32 @@ export default defineSchema({
     messageType: v.optional(v.string()), // e.g., "user_message", "system_notification", "plot_reply"
   })
   .index("by_plotId_timestamp", ["plotId", "timestamp"]) // To efficiently query messages for a plot, sorted by time
-  .index("by_recipientPlotAddress", ["recipientPlotAddress"]) // To query messages by the plot's mailbox address
+  .index("by_recipientPlotAddress", ["recipientPlotAddress"]), // To query messages by the plot's mailbox address
+
+  // Building click tracking
+  buildingClicks: defineTable({
+    plotId: v.id("plots"),
+    visitorId: v.string(), // Anonymous visitor ID
+    sessionId: v.string(), // Session identifier
+    timestamp: v.number(),
+    userAgent: v.optional(v.string()),
+    referrer: v.optional(v.string())
+  })
+  .index("by_plotId_timestamp", ["plotId", "timestamp"])
+  .index("by_visitorId", ["visitorId"])
+  .index("by_sessionId", ["sessionId"]),
+
+  // Website visit tracking
+  websiteVisits: defineTable({
+    plotId: v.id("plots"),
+    visitorId: v.string(), // Anonymous visitor ID
+    sessionId: v.string(), // Session identifier
+    websiteUrl: v.string(), // The website URL that was visited
+    timestamp: v.number(),
+    userAgent: v.optional(v.string()),
+    referrer: v.optional(v.string())
+  })
+  .index("by_plotId_timestamp", ["plotId", "timestamp"])
+  .index("by_visitorId", ["visitorId"])
+  .index("by_sessionId", ["sessionId"])
 }); // End of defineSchema

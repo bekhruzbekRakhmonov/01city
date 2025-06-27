@@ -5,6 +5,10 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useRef, useMemo } from 'react';
 import { GLTF } from 'three-stdlib';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { getVisitorId, getSessionId, getUserAgent, getReferrer } from '../../utils/analytics';
+import { Id } from '../../../convex/_generated/dataModel';
 
 // Preload models
 useGLTF.preload('/buildings3dmodel/low_poly_building.glb');
@@ -20,6 +24,7 @@ interface BuildingModelProps {
   color?: string;
   selected?: boolean;
   height?: number;
+  plotId?: string;
   companyInfo?: {
     companyName: string;
     website: string;
@@ -37,9 +42,34 @@ export function BuildingModel({
   color,
   selected = false,
   height = 5,
+  plotId,
   companyInfo,
   ...props
 }: BuildingModelProps) {
+  // Analytics mutation
+  const recordWebsiteVisit = useMutation(api.analytics.recordWebsiteVisit);
+
+  // Handle website visit tracking
+  const handleWebsiteClick = async (websiteUrl: string) => {
+    if (plotId) {
+      try {
+        await recordWebsiteVisit({
+          plotId: plotId as Id<'plots'>,
+          visitorId: getVisitorId(),
+          sessionId: getSessionId(),
+          websiteUrl,
+          timestamp: Date.now(),
+          userAgent: getUserAgent(),
+          referrer: getReferrer()
+        });
+      } catch (error) {
+        console.error('Failed to track website visit:', error);
+      }
+    }
+    
+    // Open the website
+    window.open(websiteUrl.startsWith('http') ? websiteUrl : `https://${websiteUrl}`, '_blank');
+  };
   console.log("modelatype", modelType)
   console.log("companyInfo", companyInfo)
   const group = useRef<THREE.Group>(null);
@@ -114,7 +144,7 @@ export function BuildingModel({
             )}
             <div className="flex-1">
               <div className="text-blue-600 font-bold text-2xl cursor-pointer hover:text-blue-800 transition-colors"
-                   onClick={() => companyInfo.website && window.open(companyInfo.website.startsWith('http') ? companyInfo.website : `https://${companyInfo.website}`, '_blank')}
+                   onClick={() => companyInfo.website && handleWebsiteClick(companyInfo.website)}
               >
                 🌐 Visit Website
               </div>

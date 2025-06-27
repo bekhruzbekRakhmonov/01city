@@ -2,8 +2,12 @@ import * as THREE from 'three';
 import { useRef, useState, useMemo, useEffect } from 'react';
 import { Box, RoundedBox, Cylinder, Text, Sphere, Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { BuildingModel } from './BuildingModel';
 import { PlotInfo } from '../ui/PlotInfo';
+import { getVisitorId, getSessionId, getUserAgent, getReferrer } from '../../utils/analytics';
+import { Id } from '../../../convex/_generated/dataModel';
 
 interface PlotData {
   _id: Id<'plots'>;
@@ -396,11 +400,30 @@ export function Building({
 
 
 
+  // Analytics mutations
+  const recordBuildingClick = useMutation(api.analytics.recordBuildingClick);
+
   // Handle interaction
-  const handleClick = (e) => {
+  const handleClick = async (e) => {
     e.stopPropagation();
     setClicked(!clicked);
     setShowInfoModal(true);
+
+    // Track building click
+    if (plotId) {
+      try {
+        await recordBuildingClick({
+          plotId: plotId as Id<'plots'>,
+          visitorId: getVisitorId(),
+          sessionId: getSessionId(),
+          timestamp: Date.now(),
+          userAgent: getUserAgent(),
+          referrer: getReferrer()
+        });
+      } catch (error) {
+        console.error('Failed to track building click:', error);
+      }
+    }
 
     if (onInteract && plotId) {
       onInteract(plotId);
@@ -420,6 +443,7 @@ export function Building({
             color={color}
             selected={hovered || clicked}
             height={height}
+            plotId={plotId}
             companyInfo={companyInfo}
           />
         </group>
