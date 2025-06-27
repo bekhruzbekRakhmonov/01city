@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
 
 // Record analytics event
 export const recordEvent = mutation({
@@ -265,14 +264,14 @@ export const getPlotVisitorAnalytics = query({
 });
 
 // Get real-time analytics
-export const getRealTimeAnalytics = query({
+export const getRealTimeData = query({
   args: {
     userId: v.string(),
     plotId: v.optional(v.id("plots"))
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const last24Hours = now - (24 * 60 * 60 * 1000);
+    // const last24Hours = now - (24 * 60 * 60 * 1000);
     const lastHour = now - (60 * 60 * 1000);
     
     // Current active sessions - simplified since timestamp not in analytics schema
@@ -286,7 +285,7 @@ export const getRealTimeAnalytics = query({
     const activeVisitors = activeSessions.length; // Count unique sessions as active visitors
     
     // Recent leads (last hour)
-    let recentLeadsQuery = ctx.db
+    const recentLeadsQuery = ctx.db
       .query("leads")
       .filter((q) => 
         q.and(
@@ -298,7 +297,82 @@ export const getRealTimeAnalytics = query({
     const recentLeads = await recentLeadsQuery.collect();
     
     // Recent AI interactions
-    let recentAIQuery = ctx.db
+    const recentAIQuery = ctx.db
+      .query("aiInteractions")
+      .filter((q) => 
+        q.and(
+          q.gte(q.field("timestamp"), lastHour),
+          args.plotId ? q.eq(q.field("plotId"), args.plotId) : q.neq(q.field("plotId"), undefined)
+        )
+      );
+    
+    const recentAI = await recentAIQuery.collect();
+    
+    // Revenue today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
+    let todayRevenueQuery = ctx.db
+      .query("revenueEvents")
+      .filter((q) => 
+        q.and(
+          q.eq(q.field("userId"), args.userId),
+          q.gte(q.field("timestamp"), todayStart.getTime())
+        )
+      );
+    
+    if (args.plotId) {
+      todayRevenueQuery = todayRevenueQuery.filter((q) => q.eq(q.field("plotId"), args.plotId));
+    }
+    
+    const todayRevenue = await todayRevenueQuery.collect();
+    const totalTodayRevenue = todayRevenue.reduce((sum, event) => sum + event.amount, 0);
+    
+    return {
+      activeVisitors,
+      recentLeads: recentLeads.length,
+      recentAIInteractions: recentAI.length,
+      todayRevenue: Math.round(totalTodayRevenue * 100) / 100,
+      lastUpdated: now
+    };
+  },
+});
+
+// Alias for backward compatibility
+export const getRealTimeAnalytics = query({
+  args: {
+    userId: v.string(),
+    plotId: v.optional(v.id("plots"))
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    // const last24Hours = now - (24 * 60 * 60 * 1000);
+    const lastHour = now - (60 * 60 * 1000);
+    
+    // Current active sessions - simplified since timestamp not in analytics schema
+    const activeSessions = await ctx.db
+      .query("analytics")
+      .filter((q) => 
+        args.plotId ? q.eq(q.field("plotId"), args.plotId) : q.neq(q.field("plotId"), undefined)
+      )
+      .collect();
+    
+    const activeVisitors = activeSessions.length; // Count unique sessions as active visitors
+    
+    // Recent leads (last hour)
+    const recentLeadsQuery = ctx.db
+      .query("leads")
+      .filter((q) => 
+        q.and(
+          q.gte(q.field("createdAt"), lastHour),
+          args.plotId ? q.eq(q.field("plotId"), args.plotId) : q.neq(q.field("plotId"), undefined)
+        )
+      );
+    
+    const recentLeads = await recentLeadsQuery.collect();
+    
+    // Recent AI interactions
+    const recentAIQuery = ctx.db
       .query("aiInteractions")
       .filter((q) => 
         q.and(
@@ -479,7 +553,7 @@ export const getPerformanceInsights = query({
   handler: async (ctx, args) => {
     const now = Date.now();
     const last30Days = now - (30 * 24 * 60 * 60 * 1000);
-    const previous30Days = last30Days - (30 * 24 * 60 * 60 * 1000);
+    // const previous30Days = last30Days - (30 * 24 * 60 * 60 * 1000);
     
     // TODO: Implement growth metrics calculation
     // For now, return placeholder data

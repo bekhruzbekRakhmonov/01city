@@ -1006,3 +1006,29 @@ export const remove = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+// Get user plots for dashboard
+export const getUserPlots = query({
+  args: { 
+    userId: v.optional(v.string())
+  },
+  handler: async (ctx, args) => {
+    if (!args.userId) {
+      return [];
+    }
+    
+    const plots = await ctx.db
+      .query("plots")
+      .filter((q) => q.eq(q.field("userId"), args.userId))
+      .collect();
+    
+    return plots.map(plot => ({
+      _id: plot._id,
+      name: `Plot ${plot.position.x},${plot.position.z}`,
+      position: plot.position,
+      size: plot.size,
+      userId: plot.userId,
+      _creationTime: plot._creationTime
+    }));
+  },
+});

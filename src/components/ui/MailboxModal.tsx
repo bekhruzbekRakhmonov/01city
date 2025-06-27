@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { useUser } from '@clerk/nextjs';
 import { api } from '../../../convex/_generated/api';
@@ -32,7 +33,7 @@ export function MailboxModal({
   plotId, 
   plotOwnerId, 
   plotMailboxAddress,
-  onMessageRead 
+  onMessageRead, 
 }: MailboxModalProps) {
   const [selectedMessage, setSelectedMessage] = useState<MailMessage | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -133,7 +134,9 @@ export function MailboxModal({
     });
   };
 
-  return (
+  if (typeof window === 'undefined') return null;
+
+  return createPortal(
     <div 
       className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4"
       onClick={handleClose}
@@ -145,7 +148,7 @@ export function MailboxModal({
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-gray-700">
           <div>
-            <h2 className="text-xl font-bold">Mailbox</h2>
+            <div className="text-xl font-bold">Mailbox</div>
             {plotMailboxAddress && (
               <div className="flex items-center mt-1 text-sm text-gray-400">
                 <span className="mr-2">📭 {plotMailboxAddress}</span>
@@ -204,9 +207,9 @@ export function MailboxModal({
                     } ${!msg.isRead ? 'border-l-4 border-green-400' : 'border-l-4 border-transparent'}`}
                   >
                     <div className="flex justify-between items-start">
-                      <h3 className={`font-medium ${msg.isRead ? 'text-gray-300' : 'text-white'}`}>
+                      <div className={`font-medium ${msg.isRead ? 'text-gray-300' : 'text-white'}`}>
                         {msg.subject || '(No subject)'}
-                      </h3>
+                      </div>
                       <span className="text-xs text-gray-500">
                         {formatDate(msg.timestamp)}
                       </span>
@@ -237,9 +240,9 @@ export function MailboxModal({
                 {/* Message Header */}
                 <div className="p-4 border-b border-gray-700">
                   <div className="flex justify-between items-start">
-                    <h3 className="text-xl font-bold text-white">
+                    <div className="text-xl font-bold text-white">
                       {selectedMessage.subject || '(No subject)'}
-                    </h3>
+                    </div>
                     {isOwner && (
                       <button
                         onClick={() => handleDeleteMessage(selectedMessage._id)}
@@ -315,14 +318,15 @@ export function MailboxModal({
                 <svg className="w-16 h-16 mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
-                <h3 className="text-lg font-medium text-gray-300">Select a message</h3>
+                <div className="text-lg font-medium text-gray-300">Select a message</div>
                 <p className="mt-1">Choose a message to read it here</p>
               </div>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

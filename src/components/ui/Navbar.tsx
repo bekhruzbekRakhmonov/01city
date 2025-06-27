@@ -154,25 +154,7 @@ export function Navbar() {
                   <span className="text-sm text-gray-700 dark:text-gray-300">{user.username || user.firstName}</span>
                   <UserButton afterSignOutUrl="/" />
                 </div>
-                {/* Modals */}
-                {mailboxPlot && (
-                  <MailboxModal
-                    isOpen={showMailboxModal}
-                    onClose={() => setShowMailboxModal(false)}
-                    plotId={mailboxPlot._id}
-                    plotOwnerId={user.id}
-                    plotMailboxAddress={mailboxPlot.mailbox?.address}
-                    onMessageRead={() => {
-                      // Update unread count when messages are read
-                      setUnreadCount(prev => Math.max(0, prev - 1));
-                    }}
-                  />
-                )}
-                
-                <SubscriptionModal
-                  isOpen={showSubscriptionModal}
-                  onClose={() => setShowSubscriptionModal(false)}
-                />
+
               </>
             ) : (
               <div className="flex items-center space-x-4">
@@ -186,6 +168,30 @@ export function Navbar() {
           </div>
         </div>
       </div>
+      
+      {/* Modals - Rendered outside nav to avoid z-index issues */}
+      {isSignedIn && (
+        <>
+          {mailboxPlot && (
+            <MailboxModal
+              isOpen={showMailboxModal}
+              onClose={() => setShowMailboxModal(false)}
+              plotId={mailboxPlot._id}
+              plotOwnerId={user.id}
+              plotMailboxAddress={mailboxPlot.mailbox?.address}
+              onMessageRead={() => {
+                // Update unread count when messages are read
+                setUnreadCount(prev => Math.max(0, prev - 1));
+              }}
+            />
+          )}
+          
+          <SubscriptionModal
+            isOpen={showSubscriptionModal}
+            onClose={() => setShowSubscriptionModal(false)}
+          />
+        </>
+      )}
     </nav>
   );
 }

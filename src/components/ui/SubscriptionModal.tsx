@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { useUser } from '@clerk/nextjs';
 import { api } from '../../../convex/_generated/api';
@@ -190,7 +191,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     }).format(price);
   };
   
-  return (
+  if (typeof window === 'undefined') return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[9999] overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
@@ -398,6 +401,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

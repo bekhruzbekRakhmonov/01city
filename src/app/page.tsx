@@ -1,17 +1,23 @@
 'use client';
 
-'use client';
-
 import { Suspense, useState } from 'react';
 import { Scene } from '@/components/3d/Scene';
 import { Navbar } from '@/components/ui/Navbar';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { PlotCreator } from '@/components/ui/PlotCreator';
+import { MailboxModal } from '@/components/ui/MailboxModal';
+import { Id } from '../../convex/_generated/dataModel';
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingPlot, setIsCreatingPlot] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<{ x: number; z: number } | null>(null);
+  const [showMailboxModal, setShowMailboxModal] = useState(false);
+  const [selectedMailboxPlotData, setSelectedMailboxPlotData] = useState<{
+    plotId: Id<'plots'>;
+    ownerId: string;
+    mailboxAddress?: string;
+  } | null>(null);
 
   // Simulate loading completion
   setTimeout(() => {
@@ -28,6 +34,16 @@ export default function Home() {
     setSelectedPosition(null);
   };
 
+  const handleOpenMailbox = (plotId: Id<'plots'>, ownerId: string, mailboxAddress?: string) => {
+    setSelectedMailboxPlotData({ plotId, ownerId, mailboxAddress });
+    setShowMailboxModal(true);
+  };
+
+  const handleCloseMailboxModal = () => {
+    setShowMailboxModal(false);
+    setSelectedMailboxPlotData(null);
+  };
+
   return (
     <main className="flex min-h-screen flex-col">
       {isLoading ? (
@@ -37,7 +53,7 @@ export default function Home() {
           <Navbar />
           <div className="flex-1 h-[calc(100vh-4rem)]">
             <Suspense fallback={<div>Loading 3D scene...</div>}>
-              <Scene onPlotSelect={handlePlotSelect} />
+              <Scene onPlotSelect={handlePlotSelect} onOpenMailbox={handleOpenMailbox} />
             </Suspense>
           </div>
 
@@ -45,6 +61,16 @@ export default function Home() {
             <PlotCreator
               initialPosition={selectedPosition}
               onComplete={handlePlotCreated}
+            />
+          )}
+
+          {showMailboxModal && selectedMailboxPlotData && (
+            <MailboxModal
+              isOpen={showMailboxModal}
+              onClose={handleCloseMailboxModal}
+              plotId={selectedMailboxPlotData.plotId}
+              plotOwnerId={selectedMailboxPlotData.ownerId}
+              plotMailboxAddress={selectedMailboxPlotData.mailboxAddress}
             />
           )}
 

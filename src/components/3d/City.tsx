@@ -9,6 +9,7 @@ import { Text } from '@react-three/drei';
 import { Ground } from './Ground';
 import { GovernmentBuilding } from './GovernmentBuilding';
 import { useUser } from '@clerk/nextjs';
+import { Id } from '../../../convex/_generated/dataModel';
 
 interface CityProps {
   onPlotSelect: (position: { x: number; z: number }) => void;
@@ -16,9 +17,10 @@ interface CityProps {
   showLandSelector?: boolean;
   onLandSelectorClose?: () => void;
   onShowPlotInfo?: (plotData: any) => void;
+  onOpenMailbox?: (plotIdStr: string, ownerId: string | undefined, mailboxAddress?: string) => void;
 }
 
-export function City({ onPlotSelect, onGovernmentBuildingClick, showLandSelector = false, onLandSelectorClose, onShowPlotInfo }: CityProps) {
+export function City({ onPlotSelect, onGovernmentBuildingClick, showLandSelector = false, onLandSelectorClose, onShowPlotInfo, onOpenMailbox }: CityProps) {
   // Fetch all plots from Convex
   const plots = useQuery(api.plots.getAll) || [];
   const [isChoosingPlot, setIsChoosingPlot] = useState(false);
@@ -51,7 +53,7 @@ export function City({ onPlotSelect, onGovernmentBuildingClick, showLandSelector
       
       {/* Existing Plots */}
       {plots.map((plot) => (
-        <Plot key={plot._id} plot={plot} onShowInfo={onShowPlotInfo} />
+        <Plot key={plot._id} plot={plot} onShowInfo={onShowPlotInfo} onOpenMailbox={onOpenMailbox} />
       ))}
 
       {/* Choose Plot Button - Only show to signed-in users when land selector is not controlled externally */}

@@ -8,12 +8,14 @@ import { City } from './City';
 import { GovernmentHelpModal } from '../ui/GovernmentHelpModal';
 import { PlotInfo } from '../ui/PlotInfo';
 import { useUser } from '@clerk/nextjs';
+import { Id } from '../../../convex/_generated/dataModel';
 
 interface SceneProps {
   onPlotSelect: (position: { x: number; z: number }) => void;
+  onOpenMailbox: (plotId: Id<'plots'>, ownerId: string, mailboxAddress?: string) => void;
 }
 
-export function Scene({ onPlotSelect }: SceneProps) {
+export function Scene({ onPlotSelect, onOpenMailbox }: SceneProps) {
   const { user } = useUser();
   const currentUserId = user?.id;
   const [isGovernmentModalOpen, setIsGovernmentModalOpen] = useState(false);
@@ -37,8 +39,12 @@ export function Scene({ onPlotSelect }: SceneProps) {
   };
 
   const handleOpenMailbox = (plotIdStr: string, ownerId: string | undefined, mailboxAddress?: string) => {
-    // This would be implemented to handle mailbox opening
-    console.log('Opening mailbox for plot:', plotIdStr);
+    if (!ownerId) {
+      console.error('Owner ID is undefined, cannot open mailbox.');
+      return;
+    }
+    // Convert string ID back to Id<'plots'> type - this assumes the plotIdStr is valid
+    onOpenMailbox(plotIdStr as Id<'plots'>, ownerId, mailboxAddress);
   };
   return (
     <div className="w-full h-full absolute inset-0">
@@ -109,6 +115,7 @@ export function Scene({ onPlotSelect }: SceneProps) {
             showLandSelector={showLandSelector}
             onLandSelectorClose={() => setShowLandSelector(false)}
             onShowPlotInfo={handleShowPlotInfo}
+            onOpenMailbox={handleOpenMailbox}
           />
           
           {/* Enhanced camera controls with zoom-to-cursor */}

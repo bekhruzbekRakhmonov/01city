@@ -54,8 +54,8 @@ export function PlotInfo({
 
   const handleWebsiteClick = () => {
     if (companyInfo?.website) {
-      const url = companyInfo.website.startsWith('http') 
-        ? companyInfo.website 
+      const url = companyInfo.website.startsWith('http')
+        ? companyInfo.website
         : `https://${companyInfo.website}`;
       window.open(url, '_blank', 'noopener,noreferrer');
     }
@@ -87,15 +87,14 @@ export function PlotInfo({
   */
 
   return (
-    <div 
+    <div
       className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 rounded-lg p-4 text-white min-w-[280px] max-w-[350px] shadow-lg border border-gray-600 z-[9999] font-sans pointer-events-auto"
       onClick={(e) => {
         e.stopPropagation();
         console.log('PlotInfo clicked');
       }}
     >
-      {/* Tooltip Arrow - Removed for fixed positioning */}
-      
+
       {/* Close Button */}
       <button
         onClick={(e) => {
@@ -109,24 +108,39 @@ export function PlotInfo({
       </button>
 
       {/* Building Information */}
-      <div className={`${hasCompanyInfo ? 'mb-4' : ''}`}>
-        <div className="flex justify-between items-start mb-3">
-          <h3 className="m-0 text-base font-bold text-gray-100 flex items-center gap-1.5">
-            <span className="text-xl mr-1">🏢</span>
+      <div style={{ marginBottom: hasCompanyInfo ? '16px' : '0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+          <h3 style={{
+            margin: 0,
+            fontSize: '16px',
+            fontWeight: 'bold',
+            color: '#f9fafb',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <span style={{ fontSize: '1.2em', marginRight: '4px' }}>🏢</span>
             {buildingInfo.type.charAt(0).toUpperCase() + buildingInfo.type.slice(1)}
           </h3>
-          <div className="text-sm text-gray-400 flex gap-1">
+          {/* <div style={{ fontSize: '13px', color: '#9ca3af', display: 'flex', gap: '4px' }}>
             <span>ID: {buildingInfo.plotId?.slice(0, 4)}...{buildingInfo.plotId?.slice(-4)}</span>
-          </div>
+          </div> */}
         </div>
-        
-        <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-sm text-gray-300 mb-2">
-          <span className="text-gray-400">Height:</span>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'auto 1fr',
+          gap: '4px 8px',
+          fontSize: '13px',
+          color: '#d1d5db',
+          marginBottom: '8px'
+        }}>
+          <span style={{ color: '#9ca3af' }}>Height:</span>
           <span>{buildingInfo.height}m</span>
-          
+
           {buildingInfo.address?.coordinates && (
             <>
-              <span className="text-gray-400">Location:</span>
+              <span style={{ color: '#9ca3af' }}>Location:</span>
               <span>
                 {buildingInfo.address.coordinates.lat.toFixed(4)}, {buildingInfo.address.coordinates.lng.toFixed(4)}
               </span>
@@ -136,23 +150,62 @@ export function PlotInfo({
 
         {/* Address Information */}
         {hasAddress && (
-          <div className="bg-white bg-opacity-5 rounded-md p-2 my-2 border-l-3 border-blue-500 relative">
-            <div className="flex justify-between items-center mb-1">
-              <div className="flex items-center gap-1.5 text-gray-400 text-xs font-semibold uppercase tracking-wider">
+          <div style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: '6px',
+            padding: '8px 12px',
+            margin: '8px 0',
+            borderLeft: '3px solid #3b82f6',
+            position: 'relative'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '4px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: '#9ca3af',
+                fontSize: '12px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
                 <span>📍</span>
                 <span>Address</span>
               </div>
-              <button 
+              <button
                 onClick={copyAddressToClipboard}
-                className="bg-transparent border-none text-gray-400 cursor-pointer px-1 py-0.5 rounded text-xs flex items-center gap-1 transition-all hover:text-white"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#9ca3af',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.color = '#ffffff'}
+                onMouseOut={(e) => e.currentTarget.style.color = '#9ca3af'}
               >
                 <span>Copy</span>
                 <span>📋</span>
               </button>
             </div>
-            <div className="text-sm leading-tight break-words">
-              <div className="font-medium">{address.street}</div>
-              <div className="text-gray-400 text-xs">
+            <div style={{
+              fontSize: '13px',
+              lineHeight: '1.4',
+              wordBreak: 'break-word'
+            }}>
+              <div style={{ fontWeight: 500 }}>{address.street}</div>
+              <div style={{ color: '#9ca3af', fontSize: '12px' }}>
                 {address.district}, {address.cityCode}
               </div>
             </div>
@@ -162,33 +215,74 @@ export function PlotInfo({
 
       {/* Company Information */}
       {hasCompanyInfo && (
-        <div className="border-t border-gray-600 pt-3">
-          <div className="text-sm font-bold text-green-500 mb-2">
+        <div style={{
+          borderTop: '1px solid #374151',
+          paddingTop: '12px'
+        }}>
+          <div style={{
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: '#10b981',
+            marginBottom: '8px'
+          }}>
             {companyInfo.companyName}
           </div>
-          
+
           {companyInfo.shortDescription && (
-            <p className="m-0 mb-3 text-gray-300 text-xs leading-relaxed">
+            <p style={{
+              margin: '0 0 12px 0',
+              color: '#d1d5db',
+              fontSize: '12px',
+              lineHeight: '1.4'
+            }}>
               {companyInfo.shortDescription}
             </p>
           )}
-          
+
           {/* Action Buttons */}
-          <div className="flex gap-2 flex-wrap">
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap'
+          }}>
             {companyInfo.website && (
               <button
                 onClick={handleWebsiteClick}
-                className="bg-blue-500 bg-opacity-10 text-blue-500 border border-blue-500 border-opacity-30 rounded-md px-3 py-1.5 text-xs font-medium cursor-pointer transition-all flex items-center gap-1 hover:bg-opacity-20 hover:-translate-y-0.5"
+                style={{
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  color: '#3b82f6',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                onMouseOver={(e) => {
+                  const target = e.currentTarget as HTMLElement;
+                  target.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+                  target.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={(e) => {
+                  const target = e.currentTarget as HTMLElement;
+                  target.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                  target.style.transform = 'translateY(0)';
+                }}
               >
                 <span>🌐</span>
                 <span>Website</span>
               </button>
             )}
-            
+
             {/* Mailbox Button */}
             {buildingInfo.mailbox?.enabled && (
               <button
                 onClick={() => {
+                  console.log(onOpenMailbox, buildingInfo.plotId)
                   if (onOpenMailbox && buildingInfo.plotId) {
                     onOpenMailbox(
                       buildingInfo.plotId,
@@ -197,17 +291,52 @@ export function PlotInfo({
                     );
                   }
                 }}
-                className="bg-green-500 bg-opacity-10 text-green-500 border border-green-500 border-opacity-30 rounded-md px-3 py-1.5 text-xs font-medium cursor-pointer transition-all flex items-center gap-1 hover:bg-opacity-20 hover:-translate-y-0.5"
+                style={{
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                onMouseOver={(e) => {
+                  const target = e.currentTarget as HTMLElement;
+                  target.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+                  target.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={(e) => {
+                  const target = e.currentTarget as HTMLElement;
+                  target.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                  target.style.transform = 'translateY(0)';
+                }}
               >
                 <span>📬</span>
                 <span>Mailbox</span>
               </button>
             )}
-            
+
             {canOpenMailbox && (
               <button
                 onClick={() => onOpenMailbox(plotId!, buildingInfo.userId!, mailbox?.address)}
-                className="bg-green-500 text-white border-none rounded px-3 py-1.5 text-xs font-medium cursor-pointer transition-colors hover:bg-green-600"
+                style={{
+                  backgroundColor: '#10b981', // Green color for mailbox
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
               >
                 View Mailbox
               </button>

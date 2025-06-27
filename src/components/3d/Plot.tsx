@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Html } from '@react-three/drei';
 import { useUser } from '@clerk/nextjs';
 import { Building } from './Building';
 import { Garden } from './Garden';
 import { SubBuilding } from './SubBuilding';
 import { BuildingInfoModal } from '../ui/BuildingInfoModal';
-import { MailboxModal } from '../ui/MailboxModal';
 import { Id } from '../../../convex/_generated/dataModel';
 
 // Match this with your Convex schema for plots
@@ -43,9 +42,9 @@ interface PlotData {
     enabled: boolean;
     address: string;
     publicContact?: {
-        email?: string;
-        phone?: string;
-        website?: string;
+      email?: string;
+      phone?: string;
+      website?: string;
     };
   };
   garden?: {
@@ -76,52 +75,39 @@ interface PlotProps {
   plot: PlotData;
   isSelectable?: boolean;
   onSelect?: () => void;
+  onShowInfo?: (plotData: any) => void;
+  onOpenMailbox?: (plotIdStr: string, ownerId: string | undefined, mailboxAddress?: string) => void;
 }
 
-export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
+export function Plot({ plot, isSelectable = false, onSelect, onShowInfo, onOpenMailbox }: PlotProps) {
   const { user } = useUser();
   const currentUserId = user?.id;
 
   const [showBuildingInfoModal, setShowBuildingInfoModal] = useState(false);
-  const [showMailboxModal, setShowMailboxModal] = useState(false);
-  const [selectedMailboxPlotData, setSelectedMailboxPlotData] = useState<{
-    plotId: Id<'plots'>; // Keep Id<'plots'> here for type safety with MailboxModal
-    ownerId: string;
-    mailboxAddress?: string;
-  } | null>(null);
 
   const [isHovered, setIsHovered] = useState(false);
-  
+
   const plotWidth = plot.size.width;
   const plotDepth = plot.size.depth;
-  
+
   const handlePlotClick = () => {
     if (isSelectable && onSelect) {
       onSelect();
     } else {
-      setShowBuildingInfoModal(!showBuildingInfoModal);
+      if (onShowInfo) {
+        onShowInfo(plot);
+      } else {
+        setShowBuildingInfoModal(!showBuildingInfoModal);
+      }
     }
   };
 
-  // Adjusted to match BuildingInfoModal's onOpenMailbox prop signature
+  // Pass through to parent component
   const handleOpenMailbox = (plotIdStr: string, ownerId: string | undefined, mailboxAddress?: string) => {
-    if (!ownerId) {
-        console.error("Owner ID is undefined, cannot open mailbox.");
-        return;
+    if (onOpenMailbox) {
+      onOpenMailbox(plotIdStr, ownerId, mailboxAddress);
     }
-    // Assuming plotIdStr is the string version of Id<'plots'>, which it is from plot._id.toString()
-    // For selectedMailboxPlotData, we need the actual Id<'plots'> type.
-    // This might require fetching the plot again if only string ID is available,
-    // or ensuring BuildingInfoModal can pass the original Id<'plots'> if possible.
-    // For now, we'll use the plot._id directly from the `plot` prop.
-    setSelectedMailboxPlotData({ plotId: plot._id, ownerId, mailboxAddress });
-    setShowMailboxModal(true);
-    setShowBuildingInfoModal(false); 
-  };
-
-  const handleCloseMailboxModal = () => {
-    setShowMailboxModal(false);
-    setSelectedMailboxPlotData(null);
+    setShowBuildingInfoModal(false);
   };
 
   const handlePointerOver = () => {
@@ -135,10 +121,10 @@ export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
       setIsHovered(false);
     }
   };
-  
+
   return (
-    <React.Fragment>
-      <group 
+    <>
+      <group
         position={[plot.position.x, 0, plot.position.z]}
         onClick={handlePlotClick}
         onPointerOver={handlePointerOver}
@@ -146,10 +132,10 @@ export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
       >
         <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[plotWidth, plotDepth]} />
-          <meshStandardMaterial 
-            color={isHovered ? "#4CAF50" : "#f0f0f0"} 
-            transparent 
-            opacity={isHovered ? 0.5 : 0.3} 
+          <meshStandardMaterial
+            color={isHovered ? "#4CAF50" : "#f0f0f0"}
+            transparent
+            opacity={isHovered ? 0.5 : 0.3}
           />
         </mesh>
 
@@ -178,12 +164,12 @@ export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
 
         {/* Mailbox Indicator */}
         {plot.mailbox?.enabled && (
-          <group position={[plotWidth/2 - 0.5, 0, 0]}>
-            <mesh position={[0, 0.5, 0]} rotation={[0, Math.PI/2, 0]}>
+          <group position={[plotWidth / 2 - 0.5, 0, 0]}>
+            <mesh position={[0, 0.5, 0]} rotation={[0, Math.PI / 2, 0]}>
               <boxGeometry args={[0.3, 0.4, 0.2]} />
               <meshStandardMaterial color="#c41e3a" />
             </mesh>
-            <mesh position={[0, 0.3, 0.15]} rotation={[0, Math.PI/2, 0]}>
+            <mesh position={[0, 0.3, 0.15]} rotation={[0, Math.PI / 2, 0]}>
               <cylinderGeometry args={[0.1, 0.1, 0.1, 8]} />
               <meshStandardMaterial color="#8b0000" />
             </mesh>
@@ -208,29 +194,38 @@ export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
             </Html>
           </group>
         )}
-        
-        <Building 
+
+        <Building
           type={plot.mainBuilding.type}
           position={[0, 0, 0]}
           height={plot.mainBuilding.height}
           color={plot.mainBuilding.color}
           rotation={plot.mainBuilding.rotation || 0}
-          customizations={plot.mainBuilding.customizations as any} // Addressed type mismatch with 'as any'
+          customizations={plot.mainBuilding.customizations as {
+            roofColor?: string;
+            doorColor?: string;
+            logoColor?: string;
+            windowPattern?: string;
+            signText?: string;
+          }}
           selectedModel={plot.mainBuilding.customizations?.selectedModel} // Safe access
-          plotId={plot._id}
+          plotId={plot._id.toString()}
+          onInteract={() => setShowBuildingInfoModal(true)}
           companyInfo={plot.companyInfo}
+          plot={plot}
+          onOpenMailbox={handleOpenMailbox}
         />
-        
+
         {plot.garden && plot.garden.enabled && (
-          <Garden 
+          <Garden
             style={plot.garden.style}
             elements={plot.garden.elements}
             plotSize={{ width: plotWidth, depth: plotDepth }}
           />
         )}
-        
+
         {plot.subBuildings && plot.subBuildings.map((subBuilding, index: number) => (
-          <SubBuilding 
+          <SubBuilding
             key={index}
             type={subBuilding.type}
             position={[subBuilding.position.x, 0, subBuilding.position.z]}
@@ -244,11 +239,11 @@ export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
 
       {showBuildingInfoModal && (
         <Html
-          position={[plot.position.x, plot.mainBuilding.height + 5, plot.position.z]} 
+          position={[plot.position.x, plot.mainBuilding.height + 5, plot.position.z]}
           center
           distanceFactor={15}
           style={{ pointerEvents: 'none', width: '350px' }}
-          zIndexRange={[100,0]} 
+          zIndexRange={[10000, 9999]}
         >
           <BuildingInfoModal
             isOpen={showBuildingInfoModal}
@@ -263,20 +258,11 @@ export function Plot({ plot, isSelectable = false, onSelect }: PlotProps) {
               mailbox: plot.mailbox
             }}
             currentUserId={currentUserId}
-            onOpenMailbox={handleOpenMailbox} 
+            onOpenMailbox={handleOpenMailbox}
           />
         </Html>
       )}
 
-      {showMailboxModal && selectedMailboxPlotData && (
-        <MailboxModal
-          isOpen={showMailboxModal}
-          onClose={handleCloseMailboxModal}
-          plotId={selectedMailboxPlotData!.plotId} // Non-null assertion
-          plotOwnerId={selectedMailboxPlotData!.ownerId} // Non-null assertion
-          plotMailboxAddress={selectedMailboxPlotData!.mailboxAddress} // Non-null assertion
-        />
-      )}
-    </React.Fragment>
+    </>
   );
 }
