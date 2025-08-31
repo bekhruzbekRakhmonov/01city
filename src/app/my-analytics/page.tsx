@@ -75,8 +75,8 @@ export default function MyAnalyticsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Building Analytics</h1>
-          <p className="text-gray-600 mb-4">Track your plot&apos;s performance with detailed analytics and insights.</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2"></h1>
+          <p className="text-gray-600 mb-4"></p>
         </div>
 
         {/* Enhanced Plot Selector */}
